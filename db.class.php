@@ -13,21 +13,20 @@ class db {
 	var $errorCode;
 	var $crypt;
 
-	public function __construct(){
+	public function __construct($username,$password,$host,$database){
 		$this->crypt=new encryption();
-		self::connect();
+		self::connect($username,$password,$host,$database);
 	}
 
-	private function connect($persistant = false){
+	private function connect($username,$password,$host,$database){
 		$this->CloseConnection();
-		$connectionData=authenticationFile::get(ROOTDIR."/host.conf","c9fAP7KE6thK6a9E",5);
-		$this->databaseLink = mysqli_connect($connectionData[0],$connectionData[1],$connectionData[2],"",3306);
+		$this->databaseLink = mysqli_connect($username,$password,$host,"",3306);
 		if(!$this->databaseLink){
    			$this->lastError = 'Could not connect to server: ' . mysqli_connect_errno($this->databaseLink) .mysqli_error($this->databaseLink);
    			die($this->lastError);
 			return false;
 		}
-		if(!$this->UseDB($connectionData[3])){
+		if(!$this->UseDB($database)){
 			$this->lastError = 'Could not connect to database: ' . mysqli_error($this->databaseLink);
 			die();
 			return false;
