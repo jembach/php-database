@@ -1,72 +1,104 @@
 <?php
 
+
 class db {
 
 	var $lastError;					// Holds the last error
+	var $lastErrno;					// Holds the last error code number
 	var $lastQuery;					// Holds the last query
-	var $result;						// Holds the MySQL query result
-	var $records;						// Holds the total number of records returned
+	var $result;					// Holds the MySQL query result
+	var $records;					// Holds the total number of records returned
 	var $affected;					// Holds the total number of records affected
 	var $rawResults;				// Holds raw 'arrayed' results
-	var $arrayedResult;			// Holds an array of the result
-	var $databaseLink;		// Database Connection Link
-	var $errorCode;
-	var $crypt;
+	var $arrayedResult;				// Holds an array of the result
+	var $key=null; 					// Holds the crypt key
+	var $database=null; 			// Holds the selected database
+	var $databaseLink;				// Database Connection Link
 
-	public function __construct($username,$password,$host,$database){
-		$this->crypt=new encryption();
+	/**
+	 * [__construct description]
+	 * @param string $username the username to connect with the database
+	 * @param string $password the password to connect with the database
+	 * @param string $host     the host where to connect
+	 * @param string $db 	   optional-to set at the constuctor the database
+	 * @param string $key      optional-to set the crypt key
+	 */
+	public function __construct($username,$password,$host,$db=null,$key=null){
 		self::connect($username,$password,$host,$database);
+		if($key!=null && is_string($key))
+			$this->setKey($key);
 	}
 
-	private function connect($username,$password,$host,$database){
+	/**
+	 * set the crypt key
+	 * @param string $key the key for the crypt operations
+	 */
+	public function setKey($key){
+		if($key!=null && is_string($key))
+			$this->key=$key;
+		else
+			throw new Exception("Operation Failed: Couldn't set the crypt key!");
+			
+	}
+
+	/**
+	 * [connect description]
+	 * @param  string $username the username to connect with the database
+	 * @param  string $password the password to connect with the database
+	 * @param  string $host     the host where to connect
+	 * @param  string $database optional-to set at the constuctor the database
+	 * @return bool             returns false when the connection failed or the database couldn't be selected and true if it is working
+	 */
+	public function connect($username,$password,$host,$db=null){
 		$this->CloseConnection();
 		$this->databaseLink = mysqli_connect($username,$password,$host,"",3306);
 		if(!$this->databaseLink){
-   			$this->lastError = 'Could not connect to server: ' . mysqli_connect_errno($this->databaseLink) .mysqli_error($this->databaseLink);
-   			die($this->lastError);
+			throw new Exception('Could not connect to server: ' . mysqli_connect_errno($this->databaseLink) .mysqli_error($this->databaseLink));
 			return false;
 		}
-		if(!$this->UseDB($database)){
-			$this->lastError = 'Could not connect to database: ' . mysqli_error($this->databaseLink);
-			die();
-			return false;
-		}
-		$this->crypt->setKey($connectionData[4]);
-		return true;
+		if($db!=null)
+			return $this->UseDB($database);
+		else 
+			return true;
 	}
 
-	private function UseDB($db){
+	/**
+	 * selects a database
+	 * @param  string $db the database to select
+	 * @return bool      returns false when the database couldn't be selected and true if it could selected
+	 */
+	private function useDB($db){
 		if(!mysqli_select_db($this->databaseLink,$db)){
-			$this->lastError = 'Cannot select database: ' . mysqli_error($this->databaseLink);
+			$this->database=null;
+			throw new Exception('Cannot select database: ' . mysqli_error($this->databaseLink));
 			return false;
-		}else{
+		} else {
+			$this->database=$db;
 			return true;
 		}
 	}
 
-
-	public function ExecuteSQL($query,$multi=false){
-		$this->lastQuery = $query;
-		if($multi){
-			 if(mysqli_multi_query($this->databaseLink,$query)){
-				 $this->Connect();
-				 return true;
-			 } else {
-				 $this->lastErrno = mysqli_errno($this->databaseLink);
-				 $this->lastError = mysqli_error($this->databaseLink);
-				throw new Exception("Operation Failed: [".$this->lastErrno."] ".$this->lastError." ".$query);
-				 return false;
-			 }
+	/**
+	 * execute SQL query
+	 * @param stringt $query the sql query
+	 * @return mixed         returns true if the query could executed and doesn't return a result
+	 *                       returns false if the query couldn't executed
+	 *                       returns an array or string if the query could executed and has a result
+	 */
+	public function ExecuteSQL($query){
+		if($this->database==null){
+			throw new Exception("Operation Failed: Couldn't execute SQL without selected database!", 1);
 		} else {
+			$this->lastQuery = $query;
 			if($this->result 	= mysqli_query($this->databaseLink,$query)){
 				$this->records 	= @mysqli_num_rows($this->result);
 				$this->affected	= @mysqli_affected_rows($this->databaseLink);
 				if($this->records > 0){
 					$this->ArrayResults();
-                   	return $this->arrayedResult;
+               		return $this->arrayedResult;
         		}else{
-        			return (bool)true;
-               	}
+        			return true;
+           		}
 			}else{
 				$this->lastErrno = mysqli_errno($this->databaseLink);
 				$this->lastError = mysqli_error($this->databaseLink);
@@ -76,12 +108,20 @@ class db {
 		}
 	}
 
-	public function ArrayResult(){
+	/**
+	 * convert the result of an sql query to an array - only if just on row returns
+	 * @return array the result as an array
+	 */
+	protected function ArrayResult(){
 		$this->arrayedResult = mysqli_fetch_assoc($this->result) or die (mysqli_error());
 		return $this->arrayedResult;
 	}
 
-	public function ArrayResults(){
+	/**
+	 * convert the result of an sql query to an array
+	 * @return array the result as an array
+	 */
+	protected function ArrayResults(){
 		if($this->records == 1){
 			return $this->ArrayResult();
 		}
@@ -92,46 +132,32 @@ class db {
 		return $this->arrayedResult;
 	}
 
-	public function ArrayResultsWithKey($key='id'){
-		if(isset($this->arrayedResult)){
-			unset($this->arrayedResult);
-		}
-		$this->arrayedResult = array();
-		while($row = mysqli_fetch_assoc($this->result)){
-			foreach($row as $theKey => $theValue){
-				$this->arrayedResult[$row[$key]][$theKey] = $theValue;
-			}
-		}
-		return $this->arrayedResult;
-	}
-
-	/************************************************************************************************\
-	# Funktion:                                                                                      #
-	#   - gibt den letzten Auto-Increment Wert zurück					 							 #
-	#														  										 #
-	\************************************************************************************************/
-
+	/**
+	 * returns the last ID inserted in a table
+	 * @return integer the last inserted ID
+	 */
  	public function getLastInsertID(){
 		return mysqli_insert_id($this->databaseLink);
 	}
 
- 	/************************************************************************************************\
-	# Funktion:                                                                                      #
-	#   - gibt zurück, wie viele Datensätze gefunden wurden				 							 #
-	#														  										 #
-	\************************************************************************************************/
-
+ 	/**
+ 	 * returns the counted rows that returned by a select
+ 	 * @param string $from   the table where the select is on to perform
+ 	 * @param object $object a list of db objects which are used as record objects
+ 	 * @return integer 		 the number of counted rows
+ 	 *
+ 	 * TODO: Not working yet because in Select function all column returned
+ 	 */
  	public function CountRows($from,... $object){
 		$result = $this->Select($from, 'count(*)',$object);
 		return $result[0]["count(*)"];
 	}
 
-	/************************************************************************************************\
-	# Funktion:                                                                                      #
-	#   - gibt alle Spalten in einer Tabelle zurück						 							 #
-	#														  										 #
-	\************************************************************************************************/
-
+	/**
+	 * returns all columns in a table
+	 * @param  string $from the table
+	 * @return array        columns in a table
+	 */
  	public function getColumns($from){
  		$from=self::SecureData($from);
  		$data=self::ExecuteSQL("SHOW COLUMNS FROM ".$from.";");
@@ -142,26 +168,23 @@ class db {
  		return $columns;
 	}
 	
-
-	/************************************************************************************************\
-	# Funktion:                                                                                      #
-	#   - wandelt einen string/array/object in einen gesichtern string um 							 #
-	#     -> get manipulation vorbeugen							                                 	 #
-	#														  										 #
-	\************************************************************************************************/
-
+	/**
+	 * secureData escapes a string or object to opposite an sql injection
+	 * @param  mixed $data an array,string or object to 'save'
+	 * @return mixed returns the $data element 'saved'
+	 */
 	protected function SecureData($data){
-		if(is_array($data)){
+		if(is_array($data)){	//prove if $data is an array -> if array function runs recursive to get a string or an object to 'save'
 			foreach ($data as $index => $value) {
-				$data[$index]=self::SecureData($value);
+				$data[$index]=self::SecureData($value); //runs function recursive
 			}
 			return $data;
-		} else if(is_object($data) && method_exists($data,'save')){
+		} else if(is_object($data) && method_exists($data,'save')){ // prove if $data is an object and has the save method -> not all db objects have a save method
 			$data->save($this->databaseLink,$this->crypt,self::getCryptedFields($data));
 			return $data;
-		} else if(!is_object($data))
-			return mysqli_real_escape_string($this->databaseLink,$data);
-		  else 
+		} else if(!is_object($data)) //prove if $data is a string
+			return mysqli_real_escape_string($this->databaseLink,$data); //escape the string
+		  else // $data is something other
 			return $data;
 	}
 
