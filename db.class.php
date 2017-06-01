@@ -11,12 +11,12 @@ class db {
 	var $affected;					// Holds the total number of records affected
 	var $rawResults;				// Holds raw 'arrayed' results
 	var $arrayedResult;				// Holds an array of the result
-	var $key=null; 					// Holds the crypt key
-	var $database=null; 			// Holds the selected database
+	var $key=null;					// Holds the crypt key
+	var $database=null;				// Holds the selected database
 	var $databaseLink;				// Database Connection Link
 
 	/**
-	 * [__construct description]
+	 * starts a conncetion with a database
 	 * @param string $username the username to connect with the database
 	 * @param string $password the password to connect with the database
 	 * @param string $host     the host where to connect
@@ -24,7 +24,7 @@ class db {
 	 * @param string $key      optional-to set the crypt key
 	 */
 	public function __construct($username,$password,$host,$db=null,$key=null){
-		self::connect($username,$password,$host,$database);
+		$this->connect($username,$password,$host,$db);
 		if($key!=null && is_string($key))
 			$this->setKey($key);
 	}
@@ -42,7 +42,7 @@ class db {
 	}
 
 	/**
-	 * [connect description]
+	 * starts a connection with a database
 	 * @param  string $username the username to connect with the database
 	 * @param  string $password the password to connect with the database
 	 * @param  string $host     the host where to connect
@@ -51,13 +51,13 @@ class db {
 	 */
 	public function connect($username,$password,$host,$db=null){
 		$this->CloseConnection();
-		$this->databaseLink = mysqli_connect($username,$password,$host,"",3306);
+		$this->databaseLink = mysqli_connect($host,$username,$password,"",3306);
 		if(!$this->databaseLink){
 			throw new Exception('Could not connect to server: ' . mysqli_connect_errno($this->databaseLink) .mysqli_error($this->databaseLink));
 			return false;
 		}
 		if($db!=null)
-			return $this->UseDB($database);
+			return $this->UseDB($db);
 		else 
 			return true;
 	}
@@ -109,22 +109,10 @@ class db {
 	}
 
 	/**
-	 * convert the result of an sql query to an array - only if just on row returns
-	 * @return array the result as an array
-	 */
-	protected function ArrayResult(){
-		$this->arrayedResult = mysqli_fetch_assoc($this->result) or die (mysqli_error());
-		return $this->arrayedResult;
-	}
-
-	/**
 	 * convert the result of an sql query to an array
 	 * @return array the result as an array
 	 */
 	protected function ArrayResults(){
-		if($this->records == 1){
-			return $this->ArrayResult();
-		}
 		$this->arrayedResult = array();
 		while ($data = mysqli_fetch_assoc($this->result)){
 			$this->arrayedResult[] = $data;
@@ -145,11 +133,10 @@ class db {
  	 * @param string $from   the table where the select is on to perform
  	 * @param object $object a list of db objects which are used as record objects
  	 * @return integer 		 the number of counted rows
- 	 *
- 	 * TODO: Not working yet because in Select function all column returned
  	 */
  	public function CountRows($from,... $object){
-		$result = $this->Select($from, 'count(*)',$object);
+ 		$object[]=new dbSelect("count(*)");
+		$result = $this->Select($from,$object);
 		return $result[0]["count(*)"];
 	}
 
@@ -180,7 +167,7 @@ class db {
 			}
 			return $data;
 		} else if(is_object($data) && method_exists($data,'save')){ // prove if $data is an object and has the save method -> not all db objects have a save method
-			$data->save($this->databaseLink,$this->crypt,self::getCryptedFields($data));
+			$data->save($this->databaseLink,self::getCryptedFields($data));
 			return $data;
 		} else if(!is_object($data)) //prove if $data is a string
 			return mysqli_real_escape_string($this->databaseLink,$data); //escape the string
@@ -188,98 +175,104 @@ class db {
 			return $data;
 	}
 
-	/************************************************************************************************\
-	# Funktion:                                                                                      #
-	#   - ent- bzw. verschlüsselt einen string/array 												 #
-	#														  										 #
-	\************************************************************************************************/
-
-	protected function crypt($data,$fields=array(),$mode="encrypt"){
-		if(is_string($data) && $mode=="encrypt"){ //string entschlüsseln
-			return (string)$this->crypt->encrypt((string)$data);
-		} else if(is_string($data)){	//string verschlüsseln
-			return (string)$this->crypt->decrypt((string)$data);
-		} else if(is_array($data)){ //array umwandelen
-			$newData=array();
-			foreach ($data as $key => $value) {
-				if(is_array($value))
-					$newData[$key]=self::crypt($value,$fields,$mode);
-				else if(in_array($key, $fields))
-					$newData[$key]=self::crypt($value,$fields,$mode);
-				else 
-					$newData[$key]=$value;
-			}
-			return $newData;
-		} else {
-			return $data;
-		}
-	}
-
-	/************************************************************************************************\
-	# Funktion:                                                                                      #
-	#   - gibt den Inhalt des dbCrypt Objekts zurück												 #
-	#														  										 #
-	\************************************************************************************************/
-
+	/**
+	 * returns all crypted column set by objects
+	 * @param  object $objects a list of db objects which are used as record objects
+	 * @return array           a list of all crypted columns
+	 */
 	protected function getCryptedFields($objects){
+		$cryptedColumn=array();
 		foreach ($objects as $object) {
 			if($object instanceof dbCrypt)
-				return $object->columns;
+				$cryptedColumn=array_merge($object->columns,$cryptedColumn);
 		}
-		return array();
+		return $cryptedColumn;
 	}
 
-	/************************************************************************************************\
-	# Funktion:                                                                                      #
-	#   - gibt ein entschlüsselten String zurück													 #
-	#														  										 #
-	\************************************************************************************************/
-
-	public function getEncryptedString($string){
-		return $this->crypt($string,array(),"encrypt");
-	}
-
-	/************************************************************************************************\
-	# Funktion:                                                                                      #
-	#   - gibt ein verschüsselten String zurück														 #
-	#														  										 #
-	\************************************************************************************************/
-
-	public function getDecryptedString($string){
-		return $this->crypt($string,array(),"decrypt");
-	}
-
-	/************************************************************************************************\
-	# Funktion:                                                                                      #
-	#   - führt einen Select befehl durch 		 					                                 #
-	#																								 #
-	\************************************************************************************************/
-
-	public function Select($table,... $objects){
-		//create columns arguement
-		$query ="SELECT * FROM `".self::SecureData($table)."` ";
-		$query.=self::buildClauses($objects).";";
-		$data=$this->ExecuteSQL($query);
-		if(!is_null($data) && $data!==true && $data!==false && !array_key_exists(0,$data)){ $data=array($data); }
-		if(!is_null($data) && $data!==true && $data!==false ){ $data=self::crypt($data,self::getCryptedFields($objects),"decrypt"); }
+	/**
+	 * returns a list of all columns in a table
+	 * @param  string $table the table name
+	 * @return array         a list of all columns in a table
+	 */
+	protected function getColumnsFromTable($table){
+		$tmp=$this->ExecuteSQL("SHOW COLUMNS FROM `".$table."`;");
+		if(!is_array($tmp)) return array();
+		$data=array();
+		foreach ($tmp as $value) {
+			$data[]=$value['Field'];
+		}
 		return $data;
 	}
 
-	/************************************************************************************************\
-	# Funktion:                                                                                      #
-	#   - führt einen delete befehl durch 							                                 #
-	#	TODO: make compatible with mutliple inserts; -> keys  										 #
-	\************************************************************************************************/
+	/**
+	 * runs a select query
+	 * @param string $table   the table name
+	 * @param object $objects a list of db objects which are used as record objects
+	 */
+	public function Select($table,... $objects){
+		$cryptedColumn=$this->getCryptedFields($objects);
+		$selectColumn=array();
+		if(count($cryptedColumn)>0 && $this->key==null)
+			throw new Exception("Operation Failed: No crypt key is set!");
+			
+		foreach ($objects as $object) {
+			if(get_class($object)=="dbSelect"){
+				$selectColumn=array_merge($selectColumn,$object->column);
+			}
+		}
+		if(count($cryptedColumn)>0){ //crypted fields
+			if(count($selectColumn)==0) //all columns
+				$selectColumn=$this->getColumnsFromTable($table);
+			foreach ($selectColumn as $key => $column) {
+				if(in_array($column,$cryptedColumn))
+					$selectColumn[$key]="AES_DECRYPT(`".$column."`,'".$this->key."') AS ".$column;
+				else
+					$selectColumn[$key]="`$column`";
+			}
+		} else if(count($cryptedColumn)==0 && count($selectColumn)==0){ //no crypted fields and all column selected
+			$selectColumn[]="*";
+		}
+		$query ="SELECT ";
+		foreach ($selectColumn as $column) {
+			$query.=$column.", ";
+		}
+		$query=substr($query,0,-2);
+		$query.=" FROM `".self::SecureData($table)."` ";
+		$query.=self::buildClauses(... $objects).";";
+		$data=$this->ExecuteSQL($query);
 
+		return $data;
+	}
+
+	/**
+	 * runs a insert query
+	 * @param string $table   the table name
+	 * @param array  $vars    a list of data which should be insert in a table; 
+	 *                        organized by column=>value
+	 * @param object $objects a list of db objects which are used as record objects
+	 */
 	public function Insert($table,$vars,... $objects){
+		if(isset($vars[0]) && is_array($vars[0])){
+			foreach ($vars as $value) {
+				$this->Insert($table,$value,... $objects);
+			}
+			return true;
+		}
+		$cryptedColumn=self::getCryptedFields($objects);
+		if(count($cryptedColumn)>0 && $this->key==null)
+			throw new Exception("Operation Failed: Couldn't Insert Data without a crypted key!");
+
 		$vars = $this->SecureData($vars);
 		$query = "INSERT INTO `{$table}` SET ";
-		$vars=self::crypt($vars,self::getCryptedFields($objects),"encrypt");
+
 		foreach($vars as $key=>$value){
 			if($value instanceof dbFunc)
 				$query .= "`{$key}` = {$value->func}, ";
+			else if(in_array($key,$cryptedColumn))
+				$query .= "`{$key}` = AES_ENCRYPT('{$value}','".$this->key."'), ";
 			else
 				$query .= "`{$key}` = '{$value}', ";
+
 		}
 		$query = substr($query, 0, -2);
 		return $this->ExecuteSQL($query);
@@ -294,7 +287,7 @@ class db {
 
 	public function Delete($table,... $objects){
 		$query ="DELETE FROM `".self::SecureData($table)."` ";
-		$query.=self::buildClauses($objects).";";
+		$query.=self::buildClauses(... $objects).";";
 		return $this->ExecuteSQL($query);
 	}
 
@@ -307,8 +300,12 @@ class db {
 
 	public function Update($table,$set=array(),... $objects){
 		if(count($set)==0) return false;
+
+		$cryptedColumn=self::getCryptedFields($objects);
+		if(count($cryptedColumn)>0 && $this->key==null)
+			throw new Exception("Operation Failed: Couldn't Insert Data without a crypted key!");
+
 		$set   = self::SecureData($set);
-		$set=self::crypt($set,self::getCryptedFields($objects),"encrypt");
 		$query = "UPDATE `".self::SecureData($table)."` SET ";
 		foreach($set as $key=>$value){
 			if($value instanceof dbNot)
@@ -317,12 +314,14 @@ class db {
 				$query .= "`{$key}` = `{$key}` + '{$value->num}', ";
 			else if($value instanceof dbFunc)
 				$query .= "`{$key}` = '{$value->func}', ";
+			else if(in_array($key,$cryptedColumn))
+				$query .= "`{$key}` = AES_ENCRYPT('{$value}','".$this->key."'), ";
 			else
 				$query .= "`{$key}` = '{$value}', ";
 
 		}
 		$query =substr($query, 0, -2)." ";
-		$query.=self::buildClauses($objects).";";
+		$query.=self::buildClauses(... $objects).";";
 		return $this->ExecuteSQL($query);
 	}
 
@@ -368,14 +367,15 @@ class db {
 	#																								 #
 	\************************************************************************************************/
   
-	protected function buildClauses($objects){
-		if(!is_array($objects) && is_object($objects)) $objects=array($objects);
+	protected function buildClauses(... $objects){
 		if(count($objects)==0) return;
 		$clauses=array();
 		//sql abschnitte erzeugen 
 		foreach ($objects as $object) {
 			if(method_exists($object,'save'))
-				$object->save($this->databaseLink,$this->crypt,self::getCryptedFields($objects));
+				$object->save($this->databaseLink,self::getCryptedFields($objects));
+			if(method_exists($object,'setKey'))
+				$object->setKey($this->key);
 			if(method_exists($object,'build'))
 				$clauses[get_class($object)][]=$object->build();
 		}
@@ -409,7 +409,7 @@ class dbLimit extends dbMain{
 		$this->limit=$limit;
 	}
 
-	public function save($link,$crypt,$crypted_column){
+	public function save($link,$crypted_column){
 		$start=mysqli_real_escape_string($link,$this->start);
 		$limit=mysqli_real_escape_string($link,$this->limit);
 	}
@@ -435,7 +435,7 @@ class dbJoin extends dbMain{
 		$this->destination=$destination;
 	}
 
-	public function save($link,$crypt,$crypted_column){
+	public function save($link,$crypted_column){
 		$this->source=mysqli_real_escape_string($link,$this->source);
 		$this->destination=mysqli_real_escape_string($link,$this->destination);
 	}
@@ -451,14 +451,13 @@ class dbJoin extends dbMain{
 #   - Informationen über Einbindungsklausel in einem MySQL-String                                #
 #																								 #
 \************************************************************************************************/
-
 class dbCond extends dbMain{
 	var $column;
 	var $cond;
-	var $cond_updated=false;
 	var $operator;
 	var $connect;
 	var $crypted_column;
+	var $key;
 
 	public function __construct($column,$cond,$operator="=",$connect="AND"){
 		$this->column=$column;
@@ -467,12 +466,11 @@ class dbCond extends dbMain{
 		$this->connect=$connect;
 	}
 
+	public function setKey($key){
+		$this->key=$key;
+	}
 
-	public function save($link,$crypt,$crypted_column){
-		if($this->cond_updated==false && in_array($this->column, $crypted_column)){
-			$this->cond=$crypt->encrypt($this->cond);
-			$this->cond_updated=true;
-		}
+	public function save($link,$crypted_column){
 		$this->crypted_column=$crypted_column;
 
 		$this->column=mysqli_real_escape_string($link,$this->column);
@@ -483,20 +481,27 @@ class dbCond extends dbMain{
 
 	public function build($operatian="dbCond"){
 		$query="";
+		//prove if object stands alone or in an condition block
 		if($operatian=="dbCond") $query.="WHERE ";
 		else 				 	 $query.=$this->connect." ";
+
 		if(in_array($this->column, $this->crypted_column) && ($this->cond instanceof dbNot || 
-				$this->cond instanceof dbFun || $this->operator=="LIKE")){
-			trigger_error("Auf verschlüsselte Datensätze können nicht alle Operationen angewandt werden.",E_USER_ERROR);
+				$this->cond instanceof dbFun)){
+			throw new Exception("Auf verschlüsselte Datensätze können nicht alle Operationen angewandt werden.");
 			return "";
 		}
+
 		if($this->cond instanceof dbNot) 
 			$query.=$this->column."= !".$this->$column;
 		else if($this->cond instanceof dbFun) 
 			$query.="`".$this->column."` ".$this->operator." ".$this->cond->func;
-		else if($this->operator=="LIKE") 
+		else if($this->operator=="LIKE" && !in_array($this->column, $this->crypted_column)) //LIKE and not crypted
 			$query.="`".$this->column."` ".$this->operator." '%".$this->cond."%'";
-		else 					   		 
+		else if($this->operator=="LIKE" && in_array($this->column, $this->crypted_column))  //LIKE and crypted
+			$query.="CONVERT(AES_DECRYPT(`".$this->column."`,'".$this->key."') USING utf8) ".$this->operator." '%".$this->cond."%'";
+		else if(in_array($this->column, $this->crypted_column))	   		 					//crypted
+			$query.="CONVERT(AES_DECRYPT(`".$this->column."`,'".$this->key."') USING utf8) ".$this->operator." '".$this->cond."'";
+		else																				//not crypted
 			$query.="`".$this->column."` ".$this->operator." '".$this->cond."'";
 		return $query;
 	}
@@ -511,6 +516,7 @@ class dbCond extends dbMain{
 
 class dbCondBlock extends dbMain{
 	var $cond=array();
+	var $key;
 
 	public function __construct(... $conditions){
 		foreach ($conditions as $cond) {
@@ -519,15 +525,20 @@ class dbCondBlock extends dbMain{
 		}
 	}
 
-	public function save($link,$crypt,$crypted_column){
+	public function setKey($key){
+		$this->key=$key;
+	}
+
+	public function save($link,$crypted_column){
 		foreach ($this->cond as $conditions) {
-			$conditions->save($link,$crypt,$crypted_column);
+			$conditions->save($link,$crypted_column);
 		}
 	}
 
 	public function build(){
 		$query="";
 		foreach ($this->cond as $key => $condition) {
+			$condition->setKey($this->key);
 			$query.=$condition->build("dbCondBlock").' ';
 		}
 		$query="WHERE ".substr($query, strlen($this->cond[0]->connect));
@@ -535,13 +546,9 @@ class dbCondBlock extends dbMain{
 	}
 }
 
-/************************************************************************************************\
-# Klasse:                                                                                      	 #
-#   - Record-Klasse: Informationsspeicher, keine Funktionalität im eigentlichen Sinne            #
-#   - Addiert einen wert auf ein Feld 							                                 #
-#																								 #
-\************************************************************************************************/
-
+/**
+ * record class to create an incremation at the SQL-string
+ */
 class dbInc{
 	var $num;
 
@@ -549,63 +556,81 @@ class dbInc{
 		$this->num=$num;
 	}
 
-	public function save($link,$crypt,$crypted_column){
+	public function save($link,$crypted_column){
 		$this->num=mysqli_real_escape_string($link,$this->num);
 	}
 }
 
-/************************************************************************************************\
-# Klasse:                                                                                      	 #
-#   - Record-Klasse: Informationsspeicher, keine Funktionalität im eigentlichen Sinne            #
-#   - Invertiert einen Wert 									                                 #
-#																								 #
-\************************************************************************************************/
+/**
+ * record class to create an inversion at the SQL-string
+ */
 
 class dbNot{
 
 }
 
-/************************************************************************************************\
-# Klasse:                                                                                      	 #
-#   - Record-Klasse: Informationsspeicher, keine Funktionalität im eigentlichen Sinne            #
-#   - bietet die möglichkeit, bei einen befehl, eine Mysql funktion auszuführen                  #
-#																								 #
-\************************************************************************************************/
-
+/**
+ * record class to save data for an function based on SQL
+ */
 class dbFunc{
-	var $func;
+	var $func;		//SQL function
 
 	public function __construct($func){
 		$this->func=$func;
 	}
 }
 
-/************************************************************************************************\
-# Klasse:                                                                                      	 #
-#   - Record-Klasse: Informationsspeicher, keine Funktionalität im eigentlichen Sinne            #
-#   - Informationen über die Anzeigereihenfolge 				                                 #
-#																								 #
-\************************************************************************************************/
 
+/**
+ * record class to save data for an SQL-order operation
+ */
 class dbOrder extends dbMain{
-	var $column;
-	var $direction;
+	var $column;		//the column where should be ordered on
+	var $direction;		//the order algorithm
 
+	/**
+	 * sets the data for an SQL-order operation
+	 * @param string $column    the column where should be ordered on
+	 * @param string $direction the order algorithm
+	 */
 	public function __construct($column,$direction){
 		$this->column=$column;
 		$this->direction=$direction;
 	}
 
-	public function save($link,$crypt,$crypted_column){
+	public function save($link,$crypted_column){
 		$this->column=mysqli_real_escape_string($link,$this->column);
 		$this->direction=mysqli_real_escape_string($link,$this->direction);
 	}
 
+	/**
+	 * creates the where-SQL-string for the complete SQL-query 
+	 * @return string where operation string
+	 */
 	public function build(){
 		return "ORDER BY ".$this->column." ".$this->direction;
 	}
 }
 
+class dbSelect extends dbMain{
+	var $column;
+
+	public function __construct(... $collumn){
+		$this->column=$column;
+	}
+
+	public function save($link,$crypted_column){
+
+	}
+
+	public function build(){
+		$query="";
+		foreach ($this->column as $column) {
+			$query='`'.$column.'`,';
+		}
+		return substr($query,0,-1);
+	}
+}
 /************************************************************************************************\
 # Klasse:                                                                                      	 #
 #   - Record-Klasse: Informationsspeicher, keine Funktionalität im eigentlichen Sinne            #
@@ -624,7 +649,7 @@ class dbCrypt {
 
 abstract class dbMain {
 	abstract public function build();
-	abstract public function save($link,$crypt,$crypted_column);
+	abstract public function save($link,$crypted_column);
 }
 
 ?>
