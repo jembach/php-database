@@ -23,8 +23,8 @@ class db {
 	 * @param string $db 	   optional-to set at the constuctor the database
 	 * @param string $key      optional-to set the crypt key
 	 */
-	public function __construct($username,$password,$host,$db=null,$key=null){
-		$this->connect($username,$password,$host,$db);
+	public function __construct($host,$username,$password,$db=null,$key=null){
+		$this->connect($host,$username,$password,$db);
 		if($key!=null && is_string($key))
 			$this->setKey($key);
 	}
@@ -49,7 +49,7 @@ class db {
 	 * @param  string $database optional-to set at the constuctor the database
 	 * @return bool             returns false when the connection failed or the database couldn't be selected and true if it is working
 	 */
-	public function connect($username,$password,$host,$db=null){
+	public function connect($host,$username,$password,$db=null){
 		$this->CloseConnection();
 		$this->databaseLink = mysqli_connect($host,$username,$password,"",3306);
 		if(!$this->databaseLink){
@@ -279,12 +279,11 @@ class db {
 	}
 
 
-	/************************************************************************************************\
-	# Funktion:                                                                                      #
-	#   - führt einen delete befehl durch 							                                 #
-	#																								 #
-	\************************************************************************************************/
-
+	/**
+	 * runs a delete query
+	 * @param string $table   the table name
+	 * @param object $objects a list of db objects which are used as record objects
+	 */
 	public function Delete($table,... $objects){
 		$query ="DELETE FROM `".self::SecureData($table)."` ";
 		$query.=self::buildClauses(... $objects).";";
@@ -292,12 +291,13 @@ class db {
 	}
 
 
-	/************************************************************************************************\
-	# Funktion:                                                                                      #
-	#   - führt einen update befehl durch 							                                 #
-	#																								 #
-	\************************************************************************************************/
-
+	/**
+	 * runs a updatae query
+	 * @param string $table   the table name
+	 * @param array  $vars    a list of data which should be updated in a table; 
+	 *                        organized by column=>value
+	 * @param object $objects a list of db objects which are used as record objects
+	 */
 	public function Update($table,$set=array(),... $objects){
 		if(count($set)==0) return false;
 
@@ -325,48 +325,28 @@ class db {
 		return $this->ExecuteSQL($query);
 	}
 
-
-	/************************************************************************************************\
-	# Funktion:                                                                                      #
-	#   - gibt die letzte Auto Increment Zahl einer Tabelle zurück	                                 #
-	#																								 #
-	\************************************************************************************************/
-
+	/**
+	 * returns the last ID inserted in the table
+	 * @return string last instered ID
+	 */
 	public function LastInsertID(){
 		return mysqli_insert_id($this->databaseLink);
 	}
 
-	/************************************************************************************************\
-	# Funktion:                                                                                      #
-	#   - schließt eine Verbindung				 					                                 #
-	#																								 #
-	\************************************************************************************************/
-
+	/**
+	 * close a active connection
+	 */
 	public function CloseConnection(){
 		if($this->databaseLink){
 			mysqli_close($this->databaseLink);
 		}
 	}
-	
 
-	/************************************************************************************************\
-	# Funktion:                                                                                      #
-	#   - wandelt einen string in einen gesichtern string um -> get manipulation vorbeugen           #
-	#																								 #
-	\************************************************************************************************/
-
-	public function save($save){
-	    return mysqli_real_escape_string($this->databaseLink,$save);
-	}
-
-
-	/************************************************************************************************\
-	# Funktion:                                                                                      #
-	#   - wandelt die db Objekt um in einen string 					                                 #
-	#	- bringt die db Objekte in die richtige reihenfolge											 #
-	#																								 #
-	\************************************************************************************************/
-  
+  	/**
+  	 * order alss record objects an convert them into a query
+  	 * @param  object $objects a list of db objects which are used as record objects
+  	 * @return string          the sql query that was builded
+  	 */
 	protected function buildClauses(... $objects){
 		if(count($objects)==0) return;
 		$clauses=array();
