@@ -4,7 +4,7 @@ php-database -- Simple mysqli connector for php
 To utilize this class, first import db.class.php into your project, and require it.
 
 ```php
-require_once ('MysqliDb.php');
+require_once ('db.class.php');
 ```
 
 ### Initialization
