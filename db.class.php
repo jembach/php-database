@@ -14,6 +14,9 @@ class db {
 	var $key=null;					// Holds the crypt key
 	var $database=null;				// Holds the selected database
 	var $databaseLink;				// Database Connection Link
+	var $errorReporting;			// defines the how to display errors
+	const ERROR_EXCEPTION=1;		// constant to define the errorReporting with ecxeptions
+	const ERROR_TRIGGER=2;			// constant to define the errorReporting with ecxeptions
 
 	/**
 	 * starts a conncetion with a database
@@ -23,8 +26,9 @@ class db {
 	 * @param string $db 	   optional-to set at the constuctor the database
 	 * @param string $key      optional-to set the crypt key
 	 */
-	public function __construct($host,$username,$password,$db=null,$key=null){
+	public function __construct($host,$username,$password,$db=null,$key=null,$errorReporting=db::ERROR_EXCEPTION){
 		$this->connect($host,$username,$password,$db);
+		$this->$errorReporting=$errorReporting;
 		if($key!=null && is_string($key))
 			$this->setKey($key);
 	}
@@ -37,7 +41,7 @@ class db {
 		if($key!=null && is_string($key))
 			$this->key=$key;
 		else
-			throw new Exception("Operation Failed: Couldn't set the crypt key!");
+			$this->error('Operation Failed: Could not set the crypt key!');
 			
 	}
 
@@ -53,7 +57,7 @@ class db {
 		$this->CloseConnection();
 		$this->databaseLink = mysqli_connect($host,$username,$password,"",3306);
 		if(!$this->databaseLink){
-			throw new Exception('Could not connect to server: ' . mysqli_connect_errno($this->databaseLink) .mysqli_error($this->databaseLink));
+			$this->error('Could not connect to server: '.mysqli_connect_errno($this->databaseLink).mysqli_error($this->databaseLink));
 			return false;
 		}
 		if($db!=null)
@@ -70,7 +74,7 @@ class db {
 	private function useDB($db){
 		if(!mysqli_select_db($this->databaseLink,$db)){
 			$this->database=null;
-			throw new Exception('Cannot select database: ' . mysqli_error($this->databaseLink));
+			$this->error('Cannot select database: '.mysqli_error($this->databaseLink));
 			return false;
 		} else {
 			$this->database=$db;
@@ -87,7 +91,7 @@ class db {
 	 */
 	public function ExecuteSQL($query){
 		if($this->database==null){
-			throw new Exception("Operation Failed: Couldn't execute SQL without selected database!", 1);
+			$this->error('Operation Failed: Could not execute SQL without selected database!');
 		} else {
 			$this->lastQuery = $query;
 			if($this->result 	= mysqli_query($this->databaseLink,$query)){
@@ -102,7 +106,7 @@ class db {
 			}else{
 				$this->lastErrno = mysqli_errno($this->databaseLink);
 				$this->lastError = mysqli_error($this->databaseLink);
-				throw new Exception("Operation Failed: [".$this->lastErrno."] ".$this->lastError." ".$query);
+				$this->error('Operation Failed: ['.$this->lastErrno.'] '.$this->lastError.' '.$query);
 				return false;
 			}
 		}
@@ -140,19 +144,20 @@ class db {
 		return $result[0]["count(*)"];
 	}
 
+
 	/**
-	 * returns all columns in a table
-	 * @param  string $from the table
-	 * @return array        columns in a table
+	 * returns a list of all columns in a table
+	 * @param  string $table the table name
+	 * @return array         a list of all columns in a table
 	 */
- 	public function getColumns($from){
- 		$from=self::SecureData($from);
- 		$data=self::ExecuteSQL("SHOW COLUMNS FROM ".$from.";");
- 		$columns=array();
- 		foreach ($data as $value) {
- 			$columns[]=$value['Field'];
- 		}
- 		return $columns;
+	protected function getColumns($table){
+		$tmp=$this->ExecuteSQL("SHOW COLUMNS FROM `".self::SecureData($table)."`;");
+		if(!is_array($tmp)) return array();
+		$data=array();
+		foreach ($tmp as $value) {
+			$data[]=$value['Field'];
+		}
+		return $data;
 	}
 	
 	/**
@@ -190,21 +195,6 @@ class db {
 	}
 
 	/**
-	 * returns a list of all columns in a table
-	 * @param  string $table the table name
-	 * @return array         a list of all columns in a table
-	 */
-	protected function getColumnsFromTable($table){
-		$tmp=$this->ExecuteSQL("SHOW COLUMNS FROM `".$table."`;");
-		if(!is_array($tmp)) return array();
-		$data=array();
-		foreach ($tmp as $value) {
-			$data[]=$value['Field'];
-		}
-		return $data;
-	}
-
-	/**
 	 * runs a select query
 	 * @param string $table   the table name
 	 * @param object $objects a list of db objects which are used as record objects
@@ -213,7 +203,7 @@ class db {
 		$cryptedColumn=$this->getCryptedFields($objects);
 		$selectColumn=array();
 		if(count($cryptedColumn)>0 && $this->key==null)
-			throw new Exception("Operation Failed: No crypt key is set!");
+			$this->error('Operation Failed: No crypt key is set!');
 			
 		foreach ($objects as $object) {
 			if(get_class($object)=="dbSelect"){
@@ -222,7 +212,7 @@ class db {
 		}
 		if(count($cryptedColumn)>0){ //crypted fields
 			if(count($selectColumn)==0) //all columns
-				$selectColumn=$this->getColumnsFromTable($table);
+				$selectColumn=$this->getColumns($table);
 			foreach ($selectColumn as $key => $column) {
 				if(in_array($column,$cryptedColumn))
 					$selectColumn[$key]="AES_DECRYPT(`".$column."`,'".$this->key."') AS ".$column;
@@ -260,7 +250,7 @@ class db {
 		}
 		$cryptedColumn=self::getCryptedFields($objects);
 		if(count($cryptedColumn)>0 && $this->key==null)
-			throw new Exception("Operation Failed: Couldn't Insert Data without a crypted key!");
+			$this->error('Operation Failed: Could not Insert Data without a crypted key!');
 
 		$vars = $this->SecureData($vars);
 		$query = "INSERT INTO `{$table}` SET ";
@@ -303,7 +293,7 @@ class db {
 
 		$cryptedColumn=self::getCryptedFields($objects);
 		if(count($cryptedColumn)>0 && $this->key==null)
-			throw new Exception("Operation Failed: Couldn't Insert Data without a crypted key!");
+			$this->error('Operation Failed: Could not Insert Data without a crypted key!');
 
 		$set   = self::SecureData($set);
 		$query = "UPDATE `".self::SecureData($table)."` SET ";
@@ -323,14 +313,6 @@ class db {
 		$query =substr($query, 0, -2)." ";
 		$query.=self::buildClauses(... $objects).";";
 		return $this->ExecuteSQL($query);
-	}
-
-	/**
-	 * returns the last ID inserted in the table
-	 * @return string last instered ID
-	 */
-	public function LastInsertID(){
-		return mysqli_insert_id($this->databaseLink);
 	}
 
 	/**
@@ -370,75 +352,115 @@ class db {
 		}
 		return $return;
 	}
+
+	/**
+	 * outputs an error defined by the user
+	 * @param string $errorMessage The error message
+	 */
+	protected function error($errorMessage){
+		if($this->errorReporting==db::ERROR_EXCEPTION)
+			throw new Exception($errorMessage);
+		else if($this->errorReporting==db::ERROR_TRIGGER)
+			trigger_error($errorMessage,E_USER_ERROR);
+	}
 }
 
 
-/************************************************************************************************\
-# Klasse:                                                                                      	 #
-#   - Record-Klasse: Informationsspeicher, keine Funktionalität im eigentlichen Sinne            #
-#   - Informationen über zusätzliche Joins						                                 #
-#																								 #
-\************************************************************************************************/
+//================================================================================
+// record classes
+//================================================================================
 
+/**
+ * record class for a SQL-limit operation
+ */
 class dbLimit extends dbMain{
-	var $start;
-	var $limit;
+	var $start;	//the start point
+	var $limit;	//count of rows which should be returned
 
+	/**
+	 * method to save all necessary information for the record class
+	 * @param string $start set on which row should be start
+	 * @param string $limit set how much rows should be returned
+	 */
 	public function __construct($start,$limit){
 		$this->start=$start;
 		$this->limit=$limit;
 	}
 
+	/**
+	 * escapes all used variables to opposite an sql injection
+	 * @param        $link    		 the mysqli database link
+	 * @param array  $crypted_column a list of crypted columns used in a query 
+	 */
 	public function save($link,$crypted_column){
 		$start=mysqli_real_escape_string($link,$this->start);
 		$limit=mysqli_real_escape_string($link,$this->limit);
 	}
 
+	/**
+	 * creates the where-SQL-string for the complete SQL-query 
+	 * @return string where operation string
+	 */
 	public function build(){
 		return "LIMIT ".$this->start.",".$this->limit;
 	}
 }
 
-/************************************************************************************************\
-# Klasse:                                                                                      	 #
-#   - Record-Klasse: Informationsspeicher, keine Funktionalität im eigentlichen Sinne            #
-#   - Informationen über zusätzliche Joins						                                 #
-#																								 #
-\************************************************************************************************/
 
+/**
+ * record class for a SQL-join operation
+ */
 class dbJoin extends dbMain{
-	var $source;
-	var $destination;
+	var $source;		//source table 					  - format: tablename.column
+	var $destination;	//table on which should be joined - format: tablename.column
 
-	public function __construct($source,$destination){
+	/**
+	 * method to save all necessary information for the record class
+	 * @param string $destination table on which should be joined - format: tablename.column
+	 * @param string $source	  source table 					  - format: tablename.column
+	 */
+	public function __construct($destination,$source){
 		$this->source=$source;
 		$this->destination=$destination;
 	}
 
+	/**
+	 * escapes all used variables to opposite an sql injection
+	 * @param        $link    		 the mysqli database link
+	 * @param array  $crypted_column a list of crypted columns used in a query 
+	 */
 	public function save($link,$crypted_column){
 		$this->source=mysqli_real_escape_string($link,$this->source);
 		$this->destination=mysqli_real_escape_string($link,$this->destination);
 	}
 
+	/**
+	 * creates the where-SQL-string for the complete SQL-query 
+	 * @return string where operation string
+	 */
 	public function build(){
-		return "JOIN ".strtok($this->source,'.')." ON ".$this->source."=".$this->destination;
+		return "JOIN ".strtok($this->destination,'.')." ON ".$this->destination."=".$this->source;
 	}
 }
 
-/************************************************************************************************\
-# Klasse:                                                                                      	 #
-#   - Record-Klasse: Informationsspeicher, keine Funktionalität im eigentlichen Sinne            #
-#   - Informationen über Einbindungsklausel in einem MySQL-String                                #
-#																								 #
-\************************************************************************************************/
+/**
+ * record class for a single SQL-condition operation
+ */
 class dbCond extends dbMain{
-	var $column;
-	var $cond;
-	var $operator;
-	var $connect;
-	var $crypted_column;
-	var $key;
+	var $column;			//the column on which the condition should be run on
+	var $cond;				//the statement which should be fulfill
+	var $operator;			//the operator which should be used to connect column and operator
+	var $connect;			//the connector to connect multiple dbCond
+	var $crypted_column;	//a list of crypted columns used in a query 
+	var $key;				//the key for the cryption
 
+	/**
+	 * method to save all necessary information for the record class
+	 * @param string  $column    the column on which the condition should be run on
+	 * @param string  $cond      the statement which should be fulfill
+	 * @param string  $operator  the operator which should be used to connect column and operator
+	 * @param string  $connect   the connector to connect multiple dbCond
+	 */
 	public function __construct($column,$cond,$operator="=",$connect="AND"){
 		$this->column=$column;
 		$this->cond=$cond;
@@ -446,19 +468,31 @@ class dbCond extends dbMain{
 		$this->connect=$connect;
 	}
 
+	/**
+	 * Sets the key
+	 * @param string $key the key for the cryption
+	 */
 	public function setKey($key){
 		$this->key=$key;
 	}
 
+	/**
+	 * escapes all used variables to opposite an sql injection
+	 * @param        $link    		 the mysqli database link
+	 * @param array  $crypted_column a list of crypted columns used in a query 
+	 */
 	public function save($link,$crypted_column){
 		$this->crypted_column=$crypted_column;
-
 		$this->column=mysqli_real_escape_string($link,$this->column);
 		$this->cond=mysqli_real_escape_string($link,$this->cond);
 		$this->operator=mysqli_real_escape_string($link,$this->operator);
 		$this->connect=mysqli_real_escape_string($link,$this->connect);
 	}
 
+	/**
+	 * creates the where-SQL-string for the complete SQL-query 
+	 * @return string where operation string
+	 */
 	public function build($operatian="dbCond"){
 		$query="";
 		//prove if object stands alone or in an condition block
@@ -487,17 +521,17 @@ class dbCond extends dbMain{
 	}
 }
 
-/************************************************************************************************\
-# Klasse:                                                                                      	 #
-#   - Record-Klasse: Informationsspeicher, keine Funktionalität im eigentlichen Sinne            #
-#   - Informationen über Einbindungsklausel in einem MySQL-String                                #
-#																								 #
-\************************************************************************************************/
-
+/**
+ * record class for a multi SQL-condition operation
+ */
 class dbCondBlock extends dbMain{
-	var $cond=array();
-	var $key;
+	var $cond=array();	//a list of dbCond-objects which should be connected
+	var $key;			//the key for the cryption
 
+	/**
+	 * method to save all necessary information for the record class
+	 * @param dbCond $conditions a list of dbCond-objects which should be connected
+	 */
 	public function __construct(... $conditions){
 		foreach ($conditions as $cond) {
 			if($cond instanceof dbCond)
@@ -505,16 +539,29 @@ class dbCondBlock extends dbMain{
 		}
 	}
 
+	/**
+	 * Sets the key
+	 * @param string $key the key for the cryption
+	 */
 	public function setKey($key){
 		$this->key=$key;
 	}
 
+	/**
+	 * escapes all used variables to opposite an sql injection
+	 * @param        $link    		 the mysqli database link
+	 * @param array  $crypted_column a list of crypted columns used in a query 
+	 */
 	public function save($link,$crypted_column){
 		foreach ($this->cond as $conditions) {
 			$conditions->save($link,$crypted_column);
 		}
 	}
 
+	/**
+	 * creates the where-SQL-string for the complete SQL-query 
+	 * @return string where operation string
+	 */
 	public function build(){
 		$query="";
 		foreach ($this->cond as $key => $condition) {
@@ -527,34 +574,46 @@ class dbCondBlock extends dbMain{
 }
 
 /**
- * record class to create an incremation at the SQL-string
+ * record class to create an increased on the SQL-string
  */
 class dbInc{
-	var $num;
+	var $num;	//the number how much should be increased
 
+	/**
+	 * method to save all necessary information for the record class
+	 * @param int $num the number how much should be increased
+	 */
 	public function __construct($num){
 		$this->num=$num;
 	}
 
+	/**
+	 * escapes all used variables to opposite an sql injection
+	 * @param        $link    		 the mysqli database link
+	 * @param array  $crypted_column a list of crypted columns used in a query 
+	 */
 	public function save($link,$crypted_column){
 		$this->num=mysqli_real_escape_string($link,$this->num);
 	}
 }
 
 /**
- * record class to create an inversion at the SQL-string
+ * record class to create an inversion on the SQL-string
  */
-
 class dbNot{
 
 }
 
 /**
- * record class to save data for an function based on SQL
+ * record class for a SQL operation using SQL-method
  */
 class dbFunc{
-	var $func;		//SQL function
+	var $func;		//SQL method
 
+	/**
+	 * method to save all necessary information for the record class
+	 * @param string $func SQL method
+	 */
 	public function __construct($func){
 		$this->func=$func;
 	}
@@ -562,14 +621,14 @@ class dbFunc{
 
 
 /**
- * record class to save data for an SQL-order operation
+ * record class for a SQL-order operation
  */
 class dbOrder extends dbMain{
 	var $column;		//the column where should be ordered on
 	var $direction;		//the order algorithm
 
 	/**
-	 * sets the data for an SQL-order operation
+	 * method to save all necessary information for the record class
 	 * @param string $column    the column where should be ordered on
 	 * @param string $direction the order algorithm
 	 */
@@ -578,6 +637,11 @@ class dbOrder extends dbMain{
 		$this->direction=$direction;
 	}
 
+	/**
+	 * escapes all used variables to opposite an sql injection
+	 * @param        $link    		 the mysqli database link
+	 * @param array  $crypted_column a list of crypted columns used in a query 
+	 */
 	public function save($link,$crypted_column){
 		$this->column=mysqli_real_escape_string($link,$this->column);
 		$this->direction=mysqli_real_escape_string($link,$this->direction);
@@ -592,17 +656,35 @@ class dbOrder extends dbMain{
 	}
 }
 
+/**
+ * record class to save the columns that should be select
+ */
 class dbSelect extends dbMain{
-	var $column;
+	var $column;	//a list of column which should be selected
 
+	/**
+	 * method to save all necessary information for the record class
+	 * @param string $collumn a list of column which should be selected
+	 */
 	public function __construct(... $collumn){
 		$this->column=$column;
 	}
 
+	/**
+	 * escapes all used variables to opposite an sql injection
+	 * @param        $link    		 the mysqli database link
+	 * @param array  $crypted_column a list of crypted columns used in a query 
+	 */
 	public function save($link,$crypted_column){
-
+		foreach ($this->column as $key => $value) {
+			$this->column[$key]=mysqli_real_escape_string($link,$value);
+		}
 	}
 
+	/**
+	 * creates the where-SQL-string for the complete SQL-query 
+	 * @return string where operation string
+	 */
 	public function build(){
 		$query="";
 		foreach ($this->column as $column) {
@@ -611,22 +693,25 @@ class dbSelect extends dbMain{
 		return substr($query,0,-1);
 	}
 }
-/************************************************************************************************\
-# Klasse:                                                                                      	 #
-#   - Record-Klasse: Informationsspeicher, keine Funktionalität im eigentlichen Sinne            #
-#   - Informationen über die Felder, die verschlüsselt sind		                                 #
-#																								 #
-\************************************************************************************************/
 
+/**
+ * record class to save the crypted columns
+ */
 class dbCrypt {
-	var $columns;
+	var $columns;	//a list of column which are crypted
 
+	/**
+	 * method to save all necessary information for the record class
+	 * @param string $collumn a list of column which are crypted
+	 */
 	public function __construct(... $columns){
-
 		$this->columns=$columns;
 	}
 }
 
+/**
+ * abstract class to create an uniform
+ */
 abstract class dbMain {
 	abstract public function build();
 	abstract public function save($link,$crypted_column);
