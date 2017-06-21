@@ -1,5 +1,24 @@
 php-database -- Simple mysqli connector for php
 
+### Table of Contents
+
+**[Initialization](#initialization)**  
+**[Insert Query](#insert-query)**  
+**[Update Query](#update-query)**  
+**[Select Query](#select-query)**  
+**[Delete Query](#delete-query)**  
+**[Insert Data](#insert-data)**  
+**[Running raw SQL queries](#running-raw-sql-queries)**  
+**[Where Conditions](#where--having-methods)**  
+**[Order Conditions](#ordering-method)**  
+**[Group Conditions](#grouping-method)**  
+**[Joining Tables](#join-method)**  
+**[Transaction Helpers](#transaction-helpers)**  
+
+## Support Me
+
+This software is developed during my free time and I will be glad if somebody will support me.
+
 ### Installation
 To utilize this class, first import db.class.php into your project, and require it.
 
@@ -15,7 +34,25 @@ $db = new db ('host', 'username', 'password');
 
 Advanced it could be the database set and the key for the encryption:
 ```php
-$db = new db ('host', 'username', 'password', 'database', 'key');
+$db = new db ('host', 'username', 'password', 'database', 'key', 'errorReporting');
 ```
-database and key charset params are optional.
-If no charset should be set charset, set it to null
+database name, key and error reporting mode charset params are optional.
+If no charset should be set charset, set database name and key to null and error reporting mode to one possible mode.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
