@@ -54,14 +54,14 @@ Insert multiple datasets at once
 ```php
 $data = Array(
     Array ("firstName" => "Paul",
-        "lastName" => "Meyer",
-         "username" => "pmeyer",
-        "sex" => 'male'
+           "lastName" => "Meyer",
+           "username" => "pmeyer",
+           "sex" => 'male'
     ),
     Array ("firstName" => "Julia",
-        "lastName" => "Meyer",
-        "username" => "jmeyer",
-        "sex" => "female"
+           "lastName" => "Meyer",
+           "username" => "jmeyer",
+           "sex" => "female"
     )
 );
 $db->insert('users', $data);
