@@ -39,8 +39,36 @@ $db = new db ('host', 'username', 'password', 'database', 'key', 'errorReporting
 database name, key and error reporting mode charset params are optional.
 If no charset should be set charset, set database name and key to null and error reporting mode to one possible mode.
 
+### Insert Query
+Simple example
+```php
+$data = Array ("firstName" => "admin",
+               "lastName" => "John",
+               "lastName" => 'Doe'
+);
+$db->insert ('users', $data);
+```
 
-
+Insert multiple datasets at once
+```php
+$data = Array(
+    Array ("login" => "admin",
+        "firstName" => "John",
+        "lastName" => 'Doe'
+    ),
+    Array ("login" => "other",
+        "firstName" => "Another",
+        "lastName" => 'User',
+        "password" => "very_cool_hash"
+    )
+);
+$ids = $db->insertMulti('users', $data);
+if(!$ids) {
+    echo 'insert failed: ' . $db->getLastError();
+} else {
+    echo 'new users inserted with following id\'s: ' . implode(', ', $ids);
+}
+```
 
 
 
