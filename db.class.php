@@ -1,6 +1,8 @@
 <?php
 
-
+/**
+ * Class for database connection
+ */
 class db {
 
 	var $lastError;					// Holds the last error
@@ -342,6 +344,13 @@ class db {
     	return $result;
   	}
 
+  	/**
+  	 * returns the last error
+  	 * @return string The last error.
+  	 */
+  	public function getLastError() {
+  		return $this->lastError;
+  	}
 
 	/**
 	 * close a active connection
@@ -402,15 +411,17 @@ class db {
  * record class for a SQL-limit operation
  */
 class dbLimit extends dbMain{
-	var $start;	//the start point
+	var $start;	//the start point; 
+	           	//when $limit not set this var is used to count how much rowse should returned
 	var $limit;	//count of rows which should be returned
 
 	/**
 	 * method to save all necessary information for the record class
-	 * @param string $start set on which row should be start
+	 * @param string $start set on which row should be start;
+	 * 						when $limit not set this var is used to count how much rowse should returned
 	 * @param string $limit set how much rows should be returned
 	 */
-	public function __construct($start,$limit){
+	public function __construct($start,$limit=false){
 		$this->start=$start;
 		$this->limit=$limit;
 	}
@@ -422,7 +433,8 @@ class dbLimit extends dbMain{
 	 */
 	public function save($link,$crypted_column){
 		$start=mysqli_real_escape_string($link,$this->start);
-		$limit=mysqli_real_escape_string($link,$this->limit);
+		if($this->limit!=false)
+			$limit=mysqli_real_escape_string($link,$this->limit);
 	}
 
 	/**
@@ -430,7 +442,10 @@ class dbLimit extends dbMain{
 	 * @return string where operation string
 	 */
 	public function build(){
-		return "LIMIT ".$this->start.",".$this->limit;
+		if($this->limit==false)
+			return "LIMIT ".$this->start.",".$this->limit;
+		else
+			return "LIMIT ".$this->start;
 	}
 }
 

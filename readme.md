@@ -42,9 +42,10 @@ If no charset should be set charset, set database name and key to null and error
 ### Insert Query
 Simple example
 ```php
-$data = Array ("firstName" => "admin",
-               "lastName" => "John",
-               "lastName" => 'Doe'
+$data = Array ("firstName" => "Paul",
+               "lastName" => "Meyer",
+               "username" => "pmeyer",
+               "sex" => 'male'
 );
 $db->insert ('users', $data);
 ```
@@ -52,35 +53,66 @@ $db->insert ('users', $data);
 Insert multiple datasets at once
 ```php
 $data = Array(
-    Array ("login" => "admin",
-        "firstName" => "John",
-        "lastName" => 'Doe'
+    Array ("firstName" => "Paul",
+        "lastName" => "Meyer",
+         "username" => "pmeyer",
+        "sex" => 'male'
     ),
-    Array ("login" => "other",
-        "firstName" => "Another",
-        "lastName" => 'User',
-        "password" => "very_cool_hash"
+    Array ("firstName" => "Julia",
+        "lastName" => "Meyer",
+        "username" => "jmeyer",
+        "sex" => "female"
     )
 );
-$ids = $db->insertMulti('users', $data);
-if(!$ids) {
-    echo 'insert failed: ' . $db->getLastError();
-} else {
-    echo 'new users inserted with following id\'s: ' . implode(', ', $ids);
-}
+$db->insert('users', $data);
+```
+Check if the insert was successfull
+```php
+$data = Array ("firstName" => "Paul",
+               "lastName" => "Meyer",
+               "username" => "pmeyer",
+               "sex" => 'male'
+);
+if($db->insert ('users', $data))
+	echo "Insert of new data was successfull.";
+else
+	echo "Insert of new data failed.";
 ```
 
+### Update Query
+```php
+$data = Array ("firstName" => "Paul",
+               "lastName" => "Meyer",
+               "username" => "pmeyer",
+               "sex" => 'male'
+);
+$where=new dbCond("username","pmeyer");
+if ($db->update ('users',$where))
+    echo $db->count . ' records were updated';
+else
+    echo 'update failed: ' . $db->getLastError();
+```
 
+### Select Query
+```php
+$users = $db->Select('users'); //contains an Array of all users 
+```
 
+or select with custom columns set.
 
+```php
+$cols = new dbSelect("firstname", "lastname");
+$users = $db->Select ("users", $cols);
+```
 
+or select just some rows using limit
 
-
-
-
-
-
-
-
-
+```php
+$users = $db->Select ("users", new dbLimit(10));    //return the first 10 elements
+$users = $db->Select ("users", new dbLimit(10,10)); //return 10 elements startet at the 10th element
+```
+When just one row will returned the array is still an 2 dimensional array using the format:
+```php
+$array[0]['keys'];
+```
 
