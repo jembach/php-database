@@ -71,7 +71,7 @@ class db {
 	 * @param  string $db the database to select
 	 * @return bool      returns false when the database couldn't be selected and true if it could selected
 	 */
-	private function useDB($db){
+	protected function useDB($db){
 		if(!mysqli_select_db($this->databaseLink,$db)){
 			$this->database=null;
 			$this->error('Cannot select database: '.mysqli_error($this->databaseLink));
@@ -150,7 +150,7 @@ class db {
 	 * @param  string $table the table name
 	 * @return array         a list of all columns in a table
 	 */
-	protected function getColumns($table){
+	public function getColumns($table){
 		$tmp=$this->ExecuteSQL("SHOW COLUMNS FROM `".self::SecureData($table)."`;");
 		if(!is_array($tmp)) return array();
 		$data=array();
@@ -314,6 +314,34 @@ class db {
 		$query.=self::buildClauses(... $objects).";";
 		return $this->ExecuteSQL($query);
 	}
+
+	/**
+	 * Starts a transaction.
+	 */
+	public function startTransaction() {
+    	mysqli_autocommit($this->databaseLink,false);
+  	}
+
+  	/**
+  	 * Commits a transaction.
+  	 * @return bool returns if the commit has work
+  	 */
+  	public function commitTransaction() {
+    	$result=mysqli_commit($this->databaseLink);
+    	mysqli_autocommit($this->databaseLink,true);
+    	return $result;
+  	}
+
+  	/**
+  	 * rollback all changes done by this transaction
+  	 * @return bool returns if the rollback has work
+  	 */
+  	public function rollbackTransaction() {
+    	$result=mysqli_rollback($this->databaseLink);
+    	mysqli_autocommit($this->databaseLink,true);
+    	return $result;
+  	}
+
 
 	/**
 	 * close a active connection
