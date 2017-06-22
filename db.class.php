@@ -2,6 +2,8 @@
 
 /**
  * Class for database connection
+ * TODO: dbFunc
+ * TODO: dbGroup
  */
 class db {
 
