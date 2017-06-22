@@ -745,9 +745,9 @@ class dbSelect extends dbMain{
 
 	/**
 	 * method to save all necessary information for the record class
-	 * @param string $collumn a list of column which should be selected
+	 * @param string $column a list of column which should be selected
 	 */
-	public function __construct(... $collumn){
+	public function __construct(... $column){
 		$this->column=$column;
 	}
 
@@ -783,7 +783,7 @@ class dbCrypt {
 
 	/**
 	 * method to save all necessary information for the record class
-	 * @param string $collumn a list of column which are crypted
+	 * @param string $column a list of column which are crypted
 	 */
 	public function __construct(... $columns){
 		$this->columns=$columns;
