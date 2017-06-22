@@ -62,7 +62,7 @@ For an example these Select statement show how to use it:
 $data1=$db->Select("users"); 
 //These select statement selects all rows and columns from the table users
 $data2=$db->Select("users", new dbCond("sex","male"), new dbLimit(10), 
-							new dbSelect("username"), new dbCrypt("username")); 
+                            new dbSelect("username"), new dbCrypt("username")); 
 //These select statement selects just the first ten male users and returns the uncrypted row username
 
 ```
