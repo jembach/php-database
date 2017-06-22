@@ -20,7 +20,8 @@ class db {
 	var $databaseLink;				// Database Connection Link
 	var $errorReporting;			// defines the how to display errors
 	const ERROR_EXCEPTION=1;		// constant to define the errorReporting with ecxeptions
-	const ERROR_TRIGGER=2;			// constant to define the errorReporting with ecxeptions
+	const ERROR_TRIGGER=2;			// constant to define the errorReporting with error_trigger
+	const ERROR_HIDE=3;				// constant to define the errorReporting to hide
 
 	/**
 	 * starts a conncetion with a database
@@ -38,6 +39,13 @@ class db {
 	}
 
 	/**
+	 * close the connection
+	 */
+	public function __destruct(){
+		$this->closeConnection();
+	}
+
+	/**
 	 * set the crypt key
 	 * @param string $key the key for the crypt operations
 	 */
@@ -50,6 +58,15 @@ class db {
 	}
 
 	/**
+	 * sets the error Reporting mode
+	 *
+	 * @param constant $errorReporting  The error reporting mode
+	 */
+	public function setErrorReporting($errorReporting){
+		$this->errorReporting=$errorReporting;
+	}
+
+	/**
 	 * starts a connection with a database
 	 * @param  string $username the username to connect with the database
 	 * @param  string $password the password to connect with the database
@@ -58,7 +75,7 @@ class db {
 	 * @return bool             returns false when the connection failed or the database couldn't be selected and true if it is working
 	 */
 	public function connect($host,$username,$password,$db=null){
-		$this->CloseConnection();
+		$this->closeConnection();
 		$this->databaseLink = mysqli_connect($host,$username,$password,"",3306);
 		if(!$this->databaseLink){
 			$this->error('Could not connect to server: '.mysqli_connect_errno($this->databaseLink).mysqli_error($this->databaseLink));
@@ -75,7 +92,7 @@ class db {
 	 * @param  string $db the database to select
 	 * @return bool      returns false when the database couldn't be selected and true if it could selected
 	 */
-	protected function useDB($db){
+	public function useDB($db){
 		if(!mysqli_select_db($this->databaseLink,$db)){
 			$this->database=null;
 			$this->error('Cannot select database: '.mysqli_error($this->databaseLink));
@@ -93,7 +110,7 @@ class db {
 	 *                       returns false if the query couldn't executed
 	 *                       returns an array or string if the query could executed and has a result
 	 */
-	public function ExecuteSQL($query){
+	protected function ExecuteSQL($query){
 		if($this->database==null){
 			$this->error('Operation Failed: Could not execute SQL without selected database!');
 		} else {
@@ -126,6 +143,17 @@ class db {
 			$this->arrayedResult[] = $data;
 		}
 		return $this->arrayedResult;
+	}
+
+	/**
+	 * alias function for ExecuteSQL
+	 * @param   string $query  The query
+	 * @return  mixed		   returns true if the query could executed and doesn't return a result
+	 *                         returns false if the query couldn't executed
+	 *                         returns an array or string if the query could executed and has a result
+	 */
+	public function rawSQL($query){
+		return $this->ExecuteSQL($query);
 	}
 
 	/**
@@ -354,10 +382,18 @@ class db {
   		return $this->lastError;
   	}
 
+  	/**
+  	 * returns the last error code
+  	 * @return string The last error code.
+  	 */
+  	public function getLastErrno() {
+  		return $this->lastErrno;
+  	}
+
 	/**
 	 * close a active connection
 	 */
-	public function CloseConnection(){
+	public function closeConnection(){
 		if($this->databaseLink){
 			mysqli_close($this->databaseLink);
 		}
