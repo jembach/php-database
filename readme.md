@@ -81,7 +81,8 @@ $limit=new dbLimit(10,5);
 #### dbJoin
 The dbJoin object creates in your query a join to another table.
 ```php
-//These join object join on table logins by the username from users table and the username from logins table
+//These join object join on table logins by the username from users table and 
+//the username from logins table
 $join=new dbJoin("login.username","users.username");
 ```
 
