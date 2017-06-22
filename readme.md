@@ -59,11 +59,12 @@ At the moment this class contains the following object:
 To use these objects in your select, delete, insert, update query you should set them after the nessecary parameters for each function. You could set unlimeted parameter because the function was created with a argument list at the end as a parameter. 
 For an example these Select statement show how to use it:
 ```php
-$data1=$db->Select("users"); 
 //These select statement selects all rows and columns from the table users
+$data1=$db->Select("users"); 
+
+//These select statement selects just the first ten male users and returns the decrypted row username
 $data2=$db->Select("users", new dbCond("sex","male"), new dbLimit(10), 
-                            new dbSelect("username"), new dbCrypt("username")); 
-//These select statement selects just the first ten male users and returns the uncrypted row username
+                            new dbSelect("username"), new dbCrypt("username"));
 
 ```
 
