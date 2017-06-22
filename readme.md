@@ -45,16 +45,16 @@ If no charset should be set charset, set database name and key to null and error
 ### Database Objects
 The main idea of this databse connection class is the usage of objects that are used as record objects. Each object contains the information that are needed two create an query. This query is builded by the single object and connected by the main database class.
 At the moment this class contains the following object:
-+dbLimit
-+dbJoin
-+dbCond
-+dbCondBlock
-+dbInc
-+dbNot
-+dbFunc
-+dbOrder
-+dbSelect
-+dbCrypt
++ dbLimit
++ dbJoin
++ dbCond
++ dbCondBlock
++ dbInc
++ dbNot
++ dbFunc
++ dbOrder
++ dbSelect
++ dbCrypt
 To use these objects in your select, delete, insert, update query you should set them after the nessecary parameters for each function. You could set unlimeted parameter because the function was created with a argument list at the end as a parameter. 
 For an example these Select statement show how to use it:
 ```php
