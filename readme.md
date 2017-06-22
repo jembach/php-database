@@ -55,6 +55,7 @@ At the moment this class contains the following object:
 + dbOrder
 + dbSelect
 + dbCrypt
+
 To use these objects in your select, delete, insert, update query you should set them after the nessecary parameters for each function. You could set unlimeted parameter because the function was created with a argument list at the end as a parameter. 
 For an example these Select statement show how to use it:
 ```php
