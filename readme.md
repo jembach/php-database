@@ -3,6 +3,7 @@ php-database -- Simple mysqli connector for php
 ### Table of Contents
 
 **[Initialization](#initialization)**  
+**[Database Objects](#database-objects)**  
 **[Insert Query](#insert-query)**  
 **[Update Query](#update-query)**  
 **[Select Query](#select-query)**  
@@ -26,6 +27,8 @@ To utilize this class, first import db.class.php into your project, and require 
 require_once ('db.class.php');
 ```
 
+
+
 ### Initialization
 Simple initialization with utf8 charset set by default:
 ```php
@@ -38,6 +41,28 @@ $db = new db ('host', 'username', 'password', 'database', 'key', 'errorReporting
 ```
 database name, key and error reporting mode charset params are optional.
 If no charset should be set charset, set database name and key to null and error reporting mode to one possible mode.
+
+### Database Objects
+The main idea of this databse connection class is the usage of objects that are used as record objects. Each object contains the information that are needed two create an query. This query is builded by the single object and connected by the main database class.
+At the moment this class contains the following object:
++dbLimit
++dbJoin
++dbCond
++dbCondBlock
++dbInc
++dbNot
++dbFunc
++dbOrder
++dbSelect
++dbCrypt
+To use these objects in your select, delete, insert, update query you should set them after the nessecary parameters for each function. You could set unlimeted parameter because the function was created with a argument list at the end as a parameter. 
+For an example these Select statement show how to use it:
+```php
+$data1=$db->Select("users"); //These select statement selects all rows and columns from the table users
+$data2=$db->Select("users", new dbCond("sex","male"), new dbLimit(10), dbSelect("username"), dbCrypt("username")); //These select statement selects just the first ten male users and returns the uncrypted row username
+
+```
+
 
 ### Insert Query
 Simple example
