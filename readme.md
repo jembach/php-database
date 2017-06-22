@@ -12,6 +12,8 @@ php-database -- Simple mysqli connector for php
 **[Running raw SQL queries](#running-raw-sql-queries)**  
 **[Transaction Helpers](#transaction-helpers)**  
 **[Error reporting](#error-reporting)**  
+**[Error helper](#error-helpers)**  
+**[Additional Methods](#additional-methods)**  
 
 ## Support Me
 
