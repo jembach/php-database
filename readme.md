@@ -8,13 +8,10 @@ php-database -- Simple mysqli connector for php
 **[Update Query](#update-query)**  
 **[Select Query](#select-query)**  
 **[Delete Query](#delete-query)**  
-**[Insert Data](#insert-data)**  
+**[Crypt](#crypt)**  
 **[Running raw SQL queries](#running-raw-sql-queries)**  
-**[Where Conditions](#where--having-methods)**  
-**[Order Conditions](#ordering-method)**  
-**[Group Conditions](#grouping-method)**  
-**[Joining Tables](#join-method)**  
 **[Transaction Helpers](#transaction-helpers)**  
+**[Error reporting](#error-reporting)**  
 
 ## Support Me
 
@@ -243,3 +240,96 @@ When just one row will returned the array is still an 2 dimensional array using 
 $array[0]['keys'];
 ```
 
+### Delete Query
+```php
+if($db->Delete('users', new dbCond("username","pmeyer"))) 
+   echo 'successfully deleted';
+```
+
+### Crypt
+These class is be able to encrypt and decypt data from the tables. For the crypt process the SQL-site cryption is used with using AES_ENCRYPT and AES_DECRYPT.
+Before you can use the crypt option you have to set a key. This could be done by the initialisation or by the method setKey.
+```php
+$db->setKey("key");
+```
+After this you just have to set the crypted columns with the dbCrypt object.
+```php
+$cryptedRows2=new dbCrypt("username","firstName","lastName");
+```
+Now you just have to add these object to every operation.
+```php
+//Exmaple 1 Select
+$users=$db->Select("users",new dbCrypt("firstName","lastName"));
+
+//Example 2 Select with condition
+$user =$db->Select("users",new dbCrypt("firstName","lastName"), new dbCond("lastName","Meyer"));
+
+//Example 3 Insert
+$db->Insert("users",array("firstName"=>"Paul","lastName"=>"Meyer"), new dbCrypt("firstName","lastName"));
+```
+
+### Running raw SQL queries
+```php
+$users = $db->rawSQL('SELECT * from users where failedLogins >= 10');
+foreach ($users as $user) {
+    print_r ($user);
+}
+```
+
+### Transaction helpers
+Please keep in mind that transactions are working on innoDB tables.
+Rollback transaction if insert fails:
+```php
+$db->startTransaction();
+...
+if (!$db->insert ('users', $insertData)) {
+    //Error
+    $db->rollback();
+} else {
+    //OK
+    $db->commit();
+}
+```
+
+### Error reporting
+This class have three methods of error reporting. An error could ocours when the query failed or methods are wrongly used.
+The first method for error reporting is __error triggering__. With these method the class creates an E_USER_ERROR which will be displayed like other PHP errors. Therefore you have to set the constant __db::ERROR_TRIGGER__.
+The second method is the __exception__ usage. There will be an exception created. This method I would recommend when you are working with sensible data because you have to work with try and catch to prevent error displaying. In addition the usage of try and catch is better for detecting errors. Therefore you have to set the constant __db::ERROR_EXCEPTION__.
+The last method is displaying no error. Therefore you have to set the constant __db::ERROR_HIDE__.
+```php
+//Example to set the error Reporting
+$db->setErrorReporting(db::ERROR_EXCEPTION);
+```
+
+### Error helpers
+After you executed a query you have options to check if there was an error. You can get the MySQL error string or the error code for the last executed query. 
+```php
+
+$db->insert ('users', $insertData);
+
+if ($db->getLastErrno() === 0)
+    echo 'Update succesfull';
+else
+    echo 'Update failed. Error: '. $db->getLastError();
+```
+
+### Additional Methods
+#### Changing the Database
+```php
+$db->useDB("databaseName");
+```
+
+#### Get the last inserted ID
+```php
+$db->getLastInsertID();
+```
+
+#### Get all columns from a table
+```php
+$db->getColumns("tableName");
+```
+
+#### close a connection
+```php
+$db->closeConnection();
+```
