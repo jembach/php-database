@@ -581,14 +581,14 @@ class dbCond extends dbMain{
 		else 				 	 $query.=$this->connect." ";
 
 		if(in_array($this->column, $this->crypted_column) && ($this->cond instanceof dbNot || 
-				$this->cond instanceof dbFun)){
+				$this->cond instanceof dbFunc)){
 			throw new Exception("Auf verschlüsselte Datensätze können nicht alle Operationen angewandt werden.");
 			return "";
 		}
 
 		if($this->cond instanceof dbNot) 
 			$query.=$this->column."= !".$this->$column;
-		else if($this->cond instanceof dbFun) 
+		else if($this->cond instanceof dbFunc) 
 			$query.="`".$this->column."` ".$this->operator." ".$this->cond->func;
 		else if($this->operator=="LIKE" && !in_array($this->column, $this->crypted_column)) //LIKE and not crypted
 			$query.="`".$this->column."` ".$this->operator." '%".$this->cond."%'";
