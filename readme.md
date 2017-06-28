@@ -54,6 +54,7 @@ At the moment this class contains the following object:
 + dbOrder
 + dbSelect
 + dbCrypt
++ dbGroup
 
 To use these objects in your select, delete, insert, update query you should set them after the nessecary parameters for each function. You could set unlimeted parameter because the function was created with an argument list at the end as a parameter. 
 For an example these Select statement show how to use it:
@@ -128,7 +129,15 @@ $cond2=new dbCond("username","pmeyer",new dbNot());
 ```
 
 #### dbFunc
-The dbFunc object isn't jet realy supported.
+The dbFunc object is used to create an SQL-method. It is important to use these method and don't write the SQL-method directly into a parameter because all parameters are escaped.
+This object is designed to set with a question mark a parameter in the SQL-method. For every question mark you have to set an parameter in the parameter list. These parameter will be automaticly set into quotations.
+```php
+//Example 1
+$func1=new dbFunc("NOW()");
+
+//Example 2
+$func2=new dbFunc("AES_ENCRYPT(?,?)","mytext","mykeystring");
+```
 
 #### dbOrder
 The dbOrder object is used to order selected rows. It expects two parameters where the first the column name is and the second the order direction.
@@ -163,6 +172,13 @@ $cryptedRows1=new dbCrypt("username");
 $cryptedRows2=new dbCrypt("username","firstName","lastName");
 ```
 
+#### dbGroup
+The dbGroup object is used to group selected rows. It expects the column name as a parameter.
+
+```php
+//Example
+$order1=new dbGroup("sex");
+```
 
 
 ### Insert Query
