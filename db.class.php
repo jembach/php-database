@@ -2,8 +2,6 @@
 
 /**
  * Class for database connection
- * TODO: dbFunc
- * TODO: dbGroup
  */
 class db {
 
@@ -53,7 +51,7 @@ class db {
 		if($key!=null && is_string($key))
 			$this->key=$key;
 		else
-			$this->error('Operation Failed: Could not set the crypt key!');
+			self::error('Operation Failed: Could not set the crypt key!');
 			
 	}
 
@@ -78,7 +76,7 @@ class db {
 		$this->closeConnection();
 		$this->databaseLink = mysqli_connect($host,$username,$password,"",3306);
 		if(!$this->databaseLink){
-			$this->error('Could not connect to server: '.mysqli_connect_errno($this->databaseLink).mysqli_error($this->databaseLink));
+			self::error('Could not connect to server: '.mysqli_connect_errno($this->databaseLink).mysqli_error($this->databaseLink));
 			return false;
 		}
 		if($db!=null)
@@ -95,7 +93,7 @@ class db {
 	public function useDB($db){
 		if(!mysqli_select_db($this->databaseLink,$db)){
 			$this->database=null;
-			$this->error('Cannot select database: '.mysqli_error($this->databaseLink));
+			self::error('Cannot select database: '.mysqli_error($this->databaseLink));
 			return false;
 		} else {
 			$this->database=$db;
@@ -112,7 +110,7 @@ class db {
 	 */
 	protected function ExecuteSQL($query){
 		if($this->database==null){
-			$this->error('Operation Failed: Could not execute SQL without selected database!');
+			self::error('Operation Failed: Could not execute SQL without selected database!');
 		} else {
 			$this->lastQuery = $query;
 			if($this->result 	= mysqli_query($this->databaseLink,$query)){
@@ -127,7 +125,7 @@ class db {
 			}else{
 				$this->lastErrno = mysqli_errno($this->databaseLink);
 				$this->lastError = mysqli_error($this->databaseLink);
-				$this->error('Operation Failed: ['.$this->lastErrno.'] '.$this->lastError.' '.$query);
+				self::error('Operation Failed: ['.$this->lastErrno.'] '.$this->lastError.' '.$query);
 				return false;
 			}
 		}
@@ -235,7 +233,7 @@ class db {
 		$cryptedColumn=$this->getCryptedFields($objects);
 		$selectColumn=array();
 		if(count($cryptedColumn)>0 && $this->key==null)
-			$this->error('Operation Failed: No crypt key is set!');
+			self::error('Operation Failed: No crypt key is set!');
 			
 		foreach ($objects as $object) {
 			if(get_class($object)=="dbSelect"){
@@ -282,14 +280,14 @@ class db {
 		}
 		$cryptedColumn=self::getCryptedFields($objects);
 		if(count($cryptedColumn)>0 && $this->key==null)
-			$this->error('Operation Failed: Could not Insert Data without a crypted key!');
+			self::error('Operation Failed: Could not Insert Data without a crypted key!');
 
 		$vars = $this->SecureData($vars);
 		$query = "INSERT INTO `{$table}` SET ";
 
 		foreach($vars as $key=>$value){
 			if($value instanceof dbFunc)
-				$query .= "`{$key}` = {$value->func}, ";
+				$query .= "`{$key}` = {$value->build()}, ";
 			else if(in_array($key,$cryptedColumn))
 				$query .= "`{$key}` = AES_ENCRYPT('{$value}','".$this->key."'), ";
 			else
@@ -325,7 +323,7 @@ class db {
 
 		$cryptedColumn=self::getCryptedFields($objects);
 		if(count($cryptedColumn)>0 && $this->key==null)
-			$this->error('Operation Failed: Could not Insert Data without a crypted key!');
+			self::error('Operation Failed: Could not Insert Data without a crypted key!');
 
 		$set   = self::SecureData($set);
 		$query = "UPDATE `".self::SecureData($table)."` SET ";
@@ -335,7 +333,7 @@ class db {
 			else if($value instanceof dbInc)
 				$query .= "`{$key}` = `{$key}` + '{$value->num}', ";
 			else if($value instanceof dbFunc)
-				$query .= "`{$key}` = '{$value->func}', ";
+				$query .= "`{$key}` = '{$value->build()}', ";
 			else if(in_array($key,$cryptedColumn))
 				$query .= "`{$key}` = AES_ENCRYPT('{$value}','".$this->key."'), ";
 			else
@@ -432,7 +430,7 @@ class db {
 	 * outputs an error defined by the user
 	 * @param string $errorMessage The error message
 	 */
-	protected function error($errorMessage){
+	public static function error($errorMessage){
 		if($this->errorReporting==db::ERROR_EXCEPTION)
 			throw new Exception($errorMessage);
 		else if($this->errorReporting==db::ERROR_TRIGGER)
@@ -582,14 +580,14 @@ class dbCond extends dbMain{
 
 		if(in_array($this->column, $this->crypted_column) && ($this->cond instanceof dbNot || 
 				$this->cond instanceof dbFunc)){
-			throw new Exception("Auf verschlüsselte Datensätze können nicht alle Operationen angewandt werden.");
+			db::error("Not all operations can be applied to encrypted records.");
 			return "";
 		}
 
 		if($this->cond instanceof dbNot) 
 			$query.=$this->column."= !".$this->$column;
 		else if($this->cond instanceof dbFunc) 
-			$query.="`".$this->column."` ".$this->operator." ".$this->cond->func;
+			$query.="`".$this->column."` ".$this->operator." ".$this->cond->build();
 		else if($this->operator=="LIKE" && !in_array($this->column, $this->crypted_column)) //LIKE and not crypted
 			$query.="`".$this->column."` ".$this->operator." '%".$this->cond."%'";
 		else if($this->operator=="LIKE" && in_array($this->column, $this->crypted_column))  //LIKE and crypted
@@ -686,17 +684,48 @@ class dbNot{
 }
 
 /**
- * record class for a SQL operation using SQL-method
+ * record class for a SQL operation using SQL-methods
  */
 class dbFunc{
 	var $func;		//SQL method
+	var $params;	//parameters for SQL method
 
 	/**
 	 * method to save all necessary information for the record class
 	 * @param string $func SQL method
 	 */
-	public function __construct($func){
+	public function __construct($func,... $params){
 		$this->func=$func;
+		$this->params=$params;
+		if(substr_count($this->func)!=count($this->params))
+			db::error("dbFunc: You haven't set enough parameters.");
+	}
+
+	/**
+	 * escapes all used variables to opposite an sql injection
+	 * @param        $link    		 the mysqli database link
+	 * @param array  $crypted_column a list of crypted columns used in a query 
+	 */
+	public function save($link,$crypted_column){
+		foreach ($this->params as $key => $value) {
+			$this->params[$key]=mysqli_real_escape_string($link,$value);
+		}
+	}
+
+	/**
+	 * creates the function-SQL-string for the complete SQL-query 
+	 * @return string order operation string
+	 */
+	public function build(){
+		if(strpos($this->func,"?")===false) {
+			return $this->func;
+		} else {
+			$query="";
+			foreach (explode($this->params,"?") as $key => $value) {
+				$query.=$value."'".$this->params[$key]."'";
+			}
+			return $query;
+		}
 	}
 }
 
@@ -729,11 +758,43 @@ class dbOrder extends dbMain{
 	}
 
 	/**
-	 * creates the where-SQL-string for the complete SQL-query 
-	 * @return string where operation string
+	 * creates the order-SQL-string for the complete SQL-query 
+	 * @return string order operation string
 	 */
 	public function build(){
 		return "ORDER BY ".$this->column." ".$this->direction;
+	}
+}
+
+/**
+ * record class for a SQL-group operation
+ */
+class dbGroup extends dbMain {
+	var $column;		//the column where should be grouped on
+
+	/**
+	 * method to save all necessary information for the record class
+	 * @param string $column    the column where should be grouped on
+	 */
+	public function __construct($column){
+		$this->columns=$column;
+	}
+
+	/**
+	 * escapes all used variables to opposite an sql injection
+	 * @param        $link    		 the mysqli database link
+	 * @param array  $crypted_column a list of crypted columns used in a query 
+	 */
+	public function save($link,$crypted_column){
+
+	}
+
+	/**
+	 * creates the group-SQL-string for the complete SQL-query 
+	 * @return string group operation string
+	 */
+	public function build(){
+		return "GROUP BY ".$this->$column;
 	}
 }
 
