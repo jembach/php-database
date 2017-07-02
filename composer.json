@@ -1,0 +1,25 @@
+{
+	"name": "jembach/php-database",
+	"description": "Connection class for PHP to connect to a MySQL Database",
+  "type": "library",
+  "keywords": [
+    "database",
+    "mysqli"
+  ],
+	"license": "GPL-3.0",
+    "authors": [
+        {
+            "name": "Jonas Embach",
+            "role": "Developer"
+        }
+    ],
+  "support": {
+    "docs": "https://github.com/jembach/php-database/readme.md" 
+  },
+	"require": {
+		"php": ">=5.3.0"
+	},
+	"autoload": {
+		"files": ["db.class.php"]
+	}
+}
