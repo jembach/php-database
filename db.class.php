@@ -2,6 +2,13 @@
 
 /**
  * Class for database connection
+ * @category  Database Access
+ * @package   php-database
+ * @author    Jonas Embach
+ * @copyright Copyright (c) 2017
+ * @license   http://opensource.org/licenses/gpl-3.0.html GNU Public License
+ * @link      https://github.com/jembach/php-database
+ * @version   1.0-master
  */
 class db {
 
