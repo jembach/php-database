@@ -6,8 +6,9 @@
     "database",
     "mysqli"
   ],
-	"license": "GPL-3.0",
-    "authors": [
+  "license": "GPL-3.0",
+  "version": "1.0",
+  "authors": [
         {
             "name": "Jonas Embach",
             "role": "Developer"
