@@ -1,5 +1,5 @@
 {
-	"name": "jembach/php-database",
+	"name": "jembach/php\-database",
 	"description": "Connection class for PHP to connect to a MySQL Database",
   "type": "library",
   "keywords": [
