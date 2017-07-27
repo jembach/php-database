@@ -438,9 +438,9 @@ class db {
 	 * @param string $errorMessage The error message
 	 */
 	public static function error($errorMessage){
-		if($this->errorReporting==db::ERROR_EXCEPTION)
+		if($this->errorReporting==$this->ERROR_EXCEPTION)
 			throw new Exception($errorMessage);
-		else if($this->errorReporting==db::ERROR_TRIGGER)
+		else if($this->errorReporting==$this->ERROR_TRIGGER)
 			trigger_error($errorMessage,E_USER_ERROR);
 	}
 }
