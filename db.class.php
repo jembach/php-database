@@ -36,7 +36,7 @@ class db {
 	 * @param string $db 	   optional-to set at the constuctor the database
 	 * @param string $key      optional-to set the crypt key
 	 */
-	public function __construct($host,$username,$password,$db=null,$key=null,$errorReporting=db::ERROR_EXCEPTION){
+	public function __construct($host,$username,$password,$db=null,$key=null,$errorReporting=self::ERROR_EXCEPTION){
 		$this->connect($host,$username,$password,$db);
 		$this->$errorReporting=$errorReporting;
 		if($key!=null && is_string($key))
@@ -438,9 +438,9 @@ class db {
 	 * @param string $errorMessage The error message
 	 */
 	public static function error($errorMessage){
-		if($this->errorReporting==$this->ERROR_EXCEPTION)
+		if($this->errorReporting==self::ERROR_EXCEPTION)
 			throw new Exception($errorMessage);
-		else if($this->errorReporting==$this->ERROR_TRIGGER)
+		else if($this->errorReporting==self::ERROR_TRIGGER)
 			trigger_error($errorMessage,E_USER_ERROR);
 	}
 }
