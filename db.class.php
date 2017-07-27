@@ -23,7 +23,7 @@ class db {
 	var $key=null;					// Holds the crypt key
 	var $database=null;				// Holds the selected database
 	var $databaseLink;				// Database Connection Link
-	var $errorReporting;			// defines the how to display errors
+	static $errorReporting;			// defines the how to display errors
 	const ERROR_EXCEPTION=1;		// constant to define the errorReporting with ecxeptions
 	const ERROR_TRIGGER=2;			// constant to define the errorReporting with error_trigger
 	const ERROR_HIDE=3;				// constant to define the errorReporting to hide
@@ -68,7 +68,7 @@ class db {
 	 * @param constant $errorReporting  The error reporting mode
 	 */
 	public function setErrorReporting($errorReporting){
-		$this->errorReporting=$errorReporting;
+		self::$errorReporting=$errorReporting;
 	}
 
 	/**
@@ -438,9 +438,9 @@ class db {
 	 * @param string $errorMessage The error message
 	 */
 	public static function error($errorMessage){
-		if($this->$errorReporting==self::ERROR_EXCEPTION)
+		if(self::$errorReporting==self::ERROR_EXCEPTION)
 			throw new Exception($errorMessage);
-		else if($this->$errorReporting==self::ERROR_TRIGGER)
+		else if(self::$errorReporting==self::ERROR_TRIGGER)
 			trigger_error($errorMessage,E_USER_ERROR);
 	}
 }
