@@ -196,6 +196,40 @@ class db {
 		}
 		return $data;
 	}
+
+	/**
+	 * prooves if a database exists
+	 *
+	 * @param      string  		   $db     The database
+	 * @return     boolean         		   true if database exists, false if not
+	 */
+	public function databaseExists($db){
+		$tmp=self::ExecuteSQL("SHOW DATABASES;");
+	    if($tmp==false) return false;
+	    foreach ($tmp as $databases) {
+	    	if($databases['Database']==$db)
+	    		return true;
+	    }
+	    return false;
+	}
+
+	/**
+	 * prooves if a table in a database exists
+	 *
+	 * @param      string          $table  The table
+	 * @param      string  		   $db     The database
+	 * @return     boolean         		   true if table exists, false if not
+	 */
+	public function tableExists($table,$db=false){
+		if($db==false) $db=$this->database;
+		$tmp=self::ExecuteSQL("SHOW TABLES FROM ".$db.";");
+	    if($tmp==false) return false;
+	    foreach ($tmp as $databases) {
+	    	if($databases['Tables_in_'.$db]==$table)
+	    		return true;
+	    }
+	    return false;
+	}
 	
 	/**
 	 * secureData escapes a string or object to opposite an sql injection
@@ -241,7 +275,7 @@ class db {
 		$selectColumn=array();
 		if(count($cryptedColumn)>0 && $this->key==null)
 			self::error('Operation Failed: No crypt key is set!');
-			
+		
 		foreach ($objects as $object) {
 			if(get_class($object)=="dbSelect"){
 				$selectColumn=array_merge($selectColumn,$object->column);
