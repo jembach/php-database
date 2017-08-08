@@ -30,11 +30,12 @@ class db {
 
 	/**
 	 * starts a conncetion with a database
-	 * @param string $username the username to connect with the database
-	 * @param string $password the password to connect with the database
-	 * @param string $host     the host where to connect
-	 * @param string $db 	   optional-to set at the constuctor the database
-	 * @param string $key      optional-to set the crypt key
+	 * @param string $username 			the username to connect with the database
+	 * @param string $password 			the password to connect with the database
+	 * @param string $host     			the host where to connect
+	 * @param string $db 	   			optional-to set at the constuctor the database
+	 * @param string $key      			optional-to set the crypt key
+	 * @param const  $errorReporting 	the type how error should be displayed
 	 */
 	public function __construct($host,$username,$password,$db=null,$key=null,$errorReporting=self::ERROR_EXCEPTION){
 		$this->connect($host,$username,$password,$db);
@@ -129,7 +130,7 @@ class db {
         		}else{
         			return true;
            		}
-			}else{
+			} else {
 				$this->lastErrno = mysqli_errno($this->databaseLink);
 				$this->lastError = mysqli_error($this->databaseLink);
 				self::error('Operation Failed: ['.$this->lastErrno.'] '.$this->lastError.' '.$query);
