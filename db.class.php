@@ -24,6 +24,7 @@ class db {
 	var $database=null;				// Holds the selected database
 	var $databaseLink;				// Database Connection Link
 	static $errorReporting;			// defines the how to display errors
+	static $failedConnection=0;		// Holds the total number of failed connections
 	const ERROR_EXCEPTION=1;		// constant to define the errorReporting with ecxeptions
 	const ERROR_TRIGGER=2;			// constant to define the errorReporting with error_trigger
 	const ERROR_HIDE=3;				// constant to define the errorReporting to hide
@@ -84,6 +85,7 @@ class db {
 		$this->closeConnection();
 		$this->databaseLink = @mysqli_connect($host,$username,$password,"",3306);
 		if(!$this->databaseLink){
+			self::$failedConnection++;
 			self::error('Could not connect to server');
 			return false;
 		}
