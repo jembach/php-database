@@ -82,9 +82,9 @@ class db {
 	 */
 	public function connect($host,$username,$password,$db=null){
 		$this->closeConnection();
-		$this->databaseLink = mysqli_connect($host,$username,$password,"",3306);
+		$this->databaseLink = @mysqli_connect($host,$username,$password,"",3306);
 		if(!$this->databaseLink){
-			self::error('Could not connect to server: '.mysqli_connect_errno($this->databaseLink).mysqli_error($this->databaseLink));
+			self::error('Could not connect to server');
 			return false;
 		}
 		if($db!=null)
@@ -99,9 +99,9 @@ class db {
 	 * @return bool      returns false when the database couldn't be selected and true if it could selected
 	 */
 	public function useDB($db){
-		if(!mysqli_select_db($this->databaseLink,$db)){
+		if(!$this->databaseLink || !mysqli_select_db($this->databaseLink,$db)){
 			$this->database=null;
-			self::error('Cannot select database: '.mysqli_error($this->databaseLink));
+			self::error('Cannot select database: '.@mysqli_error($this->databaseLink));
 			return false;
 		} else {
 			$this->database=$db;
@@ -167,7 +167,10 @@ class db {
 	 * @return integer the last inserted ID
 	 */
  	public function getLastInsertID(){
-		return mysqli_insert_id($this->databaseLink);
+ 		if(!$this->databaseLink)
+ 			return null;
+ 		else
+			return mysqli_insert_id($this->databaseLink);
 	}
 
  	/**
@@ -238,6 +241,8 @@ class db {
 	 * @return mixed returns the $data element 'saved'
 	 */
 	protected function SecureData($data){
+		if(!$this->databaseLink)
+			return null;
 		if(is_array($data)){	//prove if $data is an array -> if array function runs recursive to get a string or an object to 'save'
 			foreach ($data as $index => $value) {
 				$data[$index]=self::SecureData($value); //runs function recursive
@@ -391,7 +396,10 @@ class db {
 	 * Starts a transaction.
 	 */
 	public function startTransaction() {
-    	mysqli_autocommit($this->databaseLink,false);
+		if(!$this->databaseLink)
+    		return false;
+    	else
+    		mysqli_autocommit($this->databaseLink,false);
   	}
 
   	/**
@@ -399,9 +407,13 @@ class db {
   	 * @return bool returns if the commit has work
   	 */
   	public function commitTransaction() {
-    	$result=mysqli_commit($this->databaseLink);
-    	mysqli_autocommit($this->databaseLink,true);
-    	return $result;
+  		if(!$this->databaseLink)
+    		return false;
+    	else {
+	    	$result=mysqli_commit($this->databaseLink);
+	    	mysqli_autocommit($this->databaseLink,true);
+	    	return $result;
+  		}
   	}
 
   	/**
@@ -409,9 +421,13 @@ class db {
   	 * @return bool returns if the rollback has work
   	 */
   	public function rollbackTransaction() {
-    	$result=mysqli_rollback($this->databaseLink);
-    	mysqli_autocommit($this->databaseLink,true);
-    	return $result;
+  		if(!$this->databaseLink)
+    		return false;
+    	else {
+	    	$result=mysqli_rollback($this->databaseLink);
+	    	mysqli_autocommit($this->databaseLink,true);
+	    	return $result;
+	    }
   	}
 
   	/**
@@ -449,7 +465,7 @@ class db {
 		$clauses=array();
 		//sql abschnitte erzeugen 
 		foreach ($objects as $object) {
-			if(method_exists($object,'save'))
+			if(method_exists($object,'save') && $this->databaseLink)
 				$object->save($this->databaseLink,self::getCryptedFields($objects));
 			if(method_exists($object,'setKey'))
 				$object->setKey($this->key);
