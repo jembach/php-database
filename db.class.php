@@ -124,6 +124,9 @@ class db {
 		} else {
 			$this->lastQuery = $query;
 			if($this->result 	= mysqli_query($this->databaseLink,$query)){
+				if($this->result===true) {
+					return true;
+				}
 				$this->records 	= @mysqli_num_rows($this->result);
 				$this->affected	= @mysqli_affected_rows($this->databaseLink);
 				if($this->records > 0){
