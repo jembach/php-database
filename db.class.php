@@ -637,9 +637,9 @@ class dbIn extends dbMain{
 		else 				 	 $query.="AND ";
 
 		if(!in_array($this->column, $this->crypted_column))
-			$query.="`".$this->column."` IN (".explode($this->column,",").")";
+			$query.="`".$this->column."` IN (".implode(",",$this->column).")";
 		else
-			$query.="CONVERT(AES_DECRYPT(`".$this->column."`,'".$this->key."') USING utf8) IN (".explode($this->column,",").")";
+			$query.="CONVERT(AES_DECRYPT(`".$this->column."`,'".$this->key."') USING utf8) IN (".implode(",",$this->column).")";
 		return $query;
 	}
 }
