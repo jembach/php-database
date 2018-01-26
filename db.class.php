@@ -561,9 +561,10 @@ class dbJoin extends dbMain{
 	 * @param string $destination table on which should be joined - format: tablename.column
 	 * @param string $source	  source table 					  - format: tablename.column
 	 */
-	public function __construct($destination,$source){
+	public function __construct($destination,$source,$type="LEFT"){
 		$this->source=$source;
 		$this->destination=$destination;
+		$this->type=$type;
 	}
 
 	/**
@@ -581,7 +582,65 @@ class dbJoin extends dbMain{
 	 * @return string where operation string
 	 */
 	public function build(){
-		return "JOIN ".strtok($this->destination,'.')." ON ".$this->destination."=".$this->source;
+		return $this->type." JOIN ".strtok($this->destination,'.')." ON ".$this->destination."=".$this->source;
+	}
+}
+
+/**
+ * record class for a SQL-in operation
+ */
+class dbIn extends dbMain{
+	var $column;			//column where data should be in
+	var $list;				//list of data
+	var $crypted_column;	//a list of crypted columns used in a query 
+	var $key;				//the key for the cryption
+
+	/**
+	 * method to save all necessary information for the record class
+	 * @param string $column 	 column where data should be in
+	 * @param array $list		 list of data
+	 */
+	public function __construct($column, ... $list){
+		$this->column=$column;
+		$this->list=$list;
+	}
+
+	/**
+	 * Sets the key
+	 * @param string $key the key for the cryption
+	 */
+	public function setKey($key){
+		$this->key=$key;
+	}
+
+	/**
+	 * escapes all used variables to opposite an sql injection
+	 * @param        $link    		 the mysqli database link
+	 * @param array  $crypted_column a list of crypted columns used in a query 
+	 */
+	public function save($link,$crypted_column){
+		$this->crypted_column=$crypted_column;
+		$this->column=mysqli_real_escape_string($link,$this->column);
+		foreach ($this->list as &$value) {
+			$value=mysqli_real_escape_string($link,"'".$value."'");
+		}
+	}
+
+	/**
+	 * creates the where-SQL-string for the complete SQL-query 
+	 * @return string where operation string
+	 */
+	public function build($operatian="dbCond"){
+		$query="";
+		//prove if object stands alone or in an condition block
+		if($operatian=="dbCond") $query.="WHERE ";
+		else 				 	 $query.="AND ";
+
+		if(!in_array($this->column, $this->crypted_column))
+			$query.="`".$this->column."` IN (".explode($this->column,",").")";
+		else
+			$query.="CONVERT(AES_DECRYPT(`".$this->column."`,'".$this->key."') USING utf8) IN (".explode($this->column,",").")";
+		return $query;
 	}
 }
 
