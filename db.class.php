@@ -479,7 +479,7 @@ class db {
 		}
 		//sql string zusammensetzen
 		$return="";
-		foreach (array("dbJoin","dbCondBlock","dbCond",,"dbIn","dbOrder","dbLimit") as $classes) {
+		foreach (array("dbJoin","dbCondBlock","dbCond","dbIn","dbOrder","dbLimit") as $classes) {
 			if(isset($clauses[$classes])){
 				foreach ($clauses[$classes] as $subclauses) {
 					$return.=$subclauses." ";
