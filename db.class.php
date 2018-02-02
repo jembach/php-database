@@ -892,14 +892,14 @@ class dbOrder extends dbMain{
  * record class for a SQL-group operation
  */
 class dbGroup extends dbMain {
-	var $column;		//the column where should be grouped on
+	var $columns;		//the column where should be grouped on
 
 	/**
 	 * method to save all necessary information for the record class
 	 * @param string $column    the column where should be grouped on
 	 */
-	public function __construct($column){
-		$this->column=$column;
+	public function __construct(... $columns){
+		$this->columns=$columns;
 	}
 
 	/**
@@ -916,7 +916,11 @@ class dbGroup extends dbMain {
 	 * @return string group operation string
 	 */
 	public function build(){
-		return "GROUP BY ".$this->$column;
+		$query="GROUP BY ";
+		foreach ($this->columns as $value) {
+			$query.=$value." ";
+		}
+		return $query;
 	}
 }
 
