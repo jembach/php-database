@@ -918,8 +918,9 @@ class dbGroup extends dbMain {
 	public function build(){
 		$query="GROUP BY ";
 		foreach ($this->columns as $value) {
-			$query.=$value." ";
+			$query.=$value.", ";
 		}
+		$query=substr($query,0,-2);
 		return $query;
 	}
 }
