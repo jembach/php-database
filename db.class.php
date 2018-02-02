@@ -899,7 +899,7 @@ class dbGroup extends dbMain {
 	 * @param string $column    the column where should be grouped on
 	 */
 	public function __construct($column){
-		$this->columns=$column;
+		$this->column=$column;
 	}
 
 	/**
