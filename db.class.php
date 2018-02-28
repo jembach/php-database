@@ -651,7 +651,7 @@ class dbIn extends dbMain{
 		$this->crypted_column=$crypted_column;
 		$this->column=mysqli_real_escape_string($link,$this->column);
 		foreach ($this->list as &$value) {
-			$value=mysqli_real_escape_string($link,"'".$value."'");
+			$value="'".mysqli_real_escape_string($link,$value)."'";
 		}
 	}
 
