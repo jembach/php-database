@@ -277,6 +277,20 @@ class db {
 	}
 
 	/**
+	 * returns the order how to insert
+	 * @param  object $objects a list of db objects which are used as record objects
+	 * @return array           the ordered list of columns
+	 */
+	protected function getColumnsOrder($objects){
+		$cryptedColumn=array();
+		foreach ($objects as $object) {
+			if($object instanceof dbInsertColumnOrder)
+				return $object->columns
+		}
+		return null;
+	}
+
+	/**
 	 * runs a select query
 	 * @param string $table   the table name
 	 * @param object $objects a list of db objects which are used as record objects
@@ -324,7 +338,7 @@ class db {
 	 * @param object $objects a list of db objects which are used as record objects
 	 */
 	public function Insert($table,$vars,... $objects){
-		if(isset($vars[0]) && is_array($vars[0])){
+		if(isset($vars[0]) && is_array($vars[0]) && $this->getColumnsOrder($objects)==null){
 			foreach ($vars as $value) {
 				$this->Insert($table,$value,... $objects);
 			}
@@ -335,21 +349,36 @@ class db {
 			self::error('Operation Failed: Could not Insert Data without a crypted key!');
 
 		$vars = $this->SecureData($vars);
-		$query = "INSERT INTO `{$table}` SET ";
-
-		foreach($vars as $key=>$value){
-			if($value instanceof dbFunc)
-				$query .= "`{$key}` = {$value->build()}, ";
-			else if(in_array($key,$cryptedColumn))
-				$query .= "`{$key}` = AES_ENCRYPT('{$value}','".$this->key."'), ";
-			else
-				$query .= "`{$key}` = '{$value}', ";
-
+		$query = "INSERT INTO `{$table}` ";
+		$set=array();
+		if(isset($vars[0]) && is_array($vars[0])){
+			$set=$this->getColumnsOrder($objects);
+		else {
+			$set=array_keys($vars);
+			$vars=array($vars);
 		}
-		$query = substr($query, 0, -2);
+
+		$query.="(";
+		foreach ($set as $key => $value) {
+			$query.="`{$value}`, ";
+		}
+		$query = substr($query, 0, -2).") VALUES ";
+	
+		foreach($vars as $var){
+			$query.="(";
+			foreach ($var as $value) {
+				if($value instanceof dbFunc)
+					$query .= "{$value->build()}, ";
+				else if(in_array($key,$cryptedColumn))
+					$query .= "AES_ENCRYPT('{$value}','".$this->key."'), ";
+				else
+					$query .= "'{$value}', ";
+			}
+			$query.=substr($query, 0, -2)."),";
+		}
+		$query.=substr($query, 0, -1).";";
 		return $this->ExecuteSQL($query);
 	}
-
 
 	/**
 	 * runs a delete query
@@ -532,7 +561,7 @@ class dbLimit extends dbMain{
 	 */
 	public function save($link,$crypted_column){
 		$start=mysqli_real_escape_string($link,$this->start);
-		if($this->limit!=false)
+		if($this->limit!==false)
 			$limit=mysqli_real_escape_string($link,$this->limit);
 	}
 
@@ -541,7 +570,7 @@ class dbLimit extends dbMain{
 	 * @return string where operation string
 	 */
 	public function build(){
-		if($this->limit==false)
+		if($this->limit!==false)
 			return "LIMIT ".$this->start.",".$this->limit;
 		else
 			return "LIMIT ".$this->start;
@@ -637,9 +666,9 @@ class dbIn extends dbMain{
 		else 				 	 $query.="AND ";
 
 		if(!in_array($this->column, $this->crypted_column))
-			$query.="`".$this->column."` IN (".implode(",",$this->column).")";
+			$query.="`".$this->column."` IN (".implode(",",$this->list).")";
 		else
-			$query.="CONVERT(AES_DECRYPT(`".$this->column."`,'".$this->key."') USING utf8) IN (".implode(",",$this->column).")";
+			$query.="CONVERT(AES_DECRYPT(`".$this->column."`,'".$this->key."') USING utf8) IN (".implode(",",$this->list).")";
 		return $query;
 	}
 }
@@ -972,6 +1001,18 @@ class dbCrypt {
 	/**
 	 * method to save all necessary information for the record class
 	 * @param string $column a list of column which are crypted
+	 */
+	public function __construct(... $columns){
+		$this->columns=$columns;
+	}
+}
+
+class dbInsertColumnOrder {
+	var $columns;
+
+	/**
+	 * method to save all necessary information for the record class
+	 * @param string $column a list of column in the order how they should be inserted
 	 */
 	public function __construct(... $columns){
 		$this->columns=$columns;
