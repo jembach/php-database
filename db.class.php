@@ -285,7 +285,7 @@ class db {
 		$cryptedColumn=array();
 		foreach ($objects as $object) {
 			if($object instanceof dbInsertColumnOrder)
-				return $object->columns
+				return $object->columns;
 		}
 		return null;
 	}
@@ -347,23 +347,31 @@ class db {
 		$cryptedColumn=self::getCryptedFields($objects);
 		if(count($cryptedColumn)>0 && $this->key==null)
 			self::error('Operation Failed: Could not Insert Data without a crypted key!');
-
 		$vars = $this->SecureData($vars);
-		$query = "INSERT INTO `{$table}` ";
+		$ignore=false;
+		foreach ($objects  as $object) {
+			if($object instanceof dbInsertIgnore) {
+				$ignore=true;
+				break;
+			}
+		}
+		$query;
+		if($ignore)
+			$query = "INSERT IGNORE INTO `{$table}` ";
+		else 
+			$query = "INSERT INTO `{$table}` ";
 		$set=array();
 		if(isset($vars[0]) && is_array($vars[0])){
 			$set=$this->getColumnsOrder($objects);
-		else {
+		} else {
 			$set=array_keys($vars);
 			$vars=array($vars);
 		}
-
 		$query.="(";
 		foreach ($set as $key => $value) {
 			$query.="`{$value}`, ";
 		}
 		$query = substr($query, 0, -2).") VALUES ";
-	
 		foreach($vars as $var){
 			$query.="(";
 			foreach ($var as $value) {
@@ -374,9 +382,9 @@ class db {
 				else
 					$query .= "'{$value}', ";
 			}
-			$query.=substr($query, 0, -2)."),";
+			$query=substr($query, 0, -2)."),";
 		}
-		$query.=substr($query, 0, -1).";";
+		$query=substr($query, 0, -1).";";
 		return $this->ExecuteSQL($query);
 	}
 
@@ -1007,7 +1015,7 @@ class dbCrypt {
 	}
 }
 
-class dbInsertColumnOrder {
+class dbInsertColumnOrder {
 	var $columns;
 
 	/**
@@ -1017,6 +1025,13 @@ class dbInsertColumnOrder {
 	public function __construct(... $columns){
 		$this->columns=$columns;
 	}
+}
+
+/**
+ * record class to create an INSERT IGNORE on the SQL-string
+ */
+class dbInsertIgnore {
+
 }
 
 /**
