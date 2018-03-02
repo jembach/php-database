@@ -338,7 +338,10 @@ class db {
 	 * @param object $objects a list of db objects which are used as record objects
 	 */
 	public function Insert($table,$vars,... $objects){
-		if(isset($vars[0]) && is_array($vars[0]) && $this->getColumnsOrder($objects)==null){
+		if(count($vars)==0)
+			return true;
+		$multiDimensional=count($vars) != count($vars, 1);
+		if($multiDimensional && $this->getColumnsOrder($objects)==null){
 			foreach ($vars as $value) {
 				$this->Insert($table,$value,... $objects);
 			}
@@ -361,7 +364,7 @@ class db {
 		else 
 			$query = "INSERT INTO `{$table}` ";
 		$set=array();
-		if(isset($vars[0]) && is_array($vars[0])){
+		if($multiDimensional) {
 			$set=$this->getColumnsOrder($objects);
 		} else {
 			$set=array_keys($vars);
@@ -372,7 +375,7 @@ class db {
 			$query.="`{$value}`, ";
 		}
 		$query = substr($query, 0, -2).") VALUES ";
-		foreach($vars as $var){
+		foreach($vars as $key => $var){
 			$query.="(";
 			foreach ($var as $value) {
 				if($value instanceof dbFunc)
@@ -383,6 +386,7 @@ class db {
 					$query .= "'{$value}', ";
 			}
 			$query=substr($query, 0, -2)."),";
+			unset($vars[$key]);
 		}
 		$query=substr($query, 0, -1).";";
 		return $this->ExecuteSQL($query);
