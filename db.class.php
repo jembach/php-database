@@ -291,6 +291,20 @@ class db {
 	}
 
 	/**
+	 * returns the dbOnDuplicateKeyUpdate object if exists
+	 * @param  object $objects a list of db objects which are used as record objects
+	 * @return array           the dbOnDuplicateKeyUpdate object
+	 */
+	protected function getdbOnDuplicateKeyUpdateObject($objects){
+		$cryptedColumn=array();
+		foreach ($objects as $object) {
+			if($object instanceof dbOnDuplicateKeyUpdate)
+				return $object->columns;
+		}
+		return null;
+	}
+
+	/**
 	 * runs a select query
 	 * @param string $table   the table name
 	 * @param object $objects a list of db objects which are used as record objects
@@ -375,20 +389,32 @@ class db {
 			$query.="`{$value}`, ";
 		}
 		$query = substr($query, 0, -2).") VALUES ";
+		$count=0;
 		foreach($vars as $key => $var){
 			$query.="(";
+			$count=0;
 			foreach ($var as $value) {
 				if($value instanceof dbFunc)
 					$query .= "{$value->build()}, ";
-				else if(in_array($key,$cryptedColumn))
+				else if(in_array($set[$count],$cryptedColumn))
 					$query .= "AES_ENCRYPT('{$value}','".$this->key."'), ";
+				else if($value===NULL || $value===null || $value===Null)
+					$query .= "NULL, ";
 				else
 					$query .= "'{$value}', ";
+				$count++;
 			}
 			$query=substr($query, 0, -2)."),";
 			unset($vars[$key]);
 		}
-		$query=substr($query, 0, -1).";";
+		$query=substr($query, 0, -1)." ";
+		$onDuplicateKeyUpdate=$this->getdbOnDuplicateKeyUpdateObject(... $objects);
+		if($onDuplicateKeyUpdate!=null){
+			$onDuplicateKeyUpdate->setKey($this->key);
+			$onDuplicateKeyUpdate->save($this->databaseLink,$cryptedColumn);
+			$query.=$onDuplicateKeyUpdate->build();
+		}
+		$query.=";";
 		return $this->ExecuteSQL($query);
 	}
 
@@ -1019,6 +1045,9 @@ class dbCrypt {
 	}
 }
 
+/**
+ * record class to save the order how columns should be inserted
+ */
 class dbInsertColumnOrder {
 	var $columns;
 
@@ -1036,6 +1065,64 @@ class dbInsertColumnOrder {
  */
 class dbInsertIgnore {
 
+}
+
+/**
+ * record class to create an INSERT ... ON DUPLICATED KEY UPDATE on the SQL-string
+ */
+class dbOnDuplicateKeyUpdate {
+	var $actions;
+	var $key;
+	var $crypted_column;
+
+	/**
+	 * method to save all necessary information for the record class
+	 * @param array $actions a list of array in the format: array(row1=>action1,row2=>action2,...)
+	 */
+	public function __construct($actions){
+		$this->actions=$actions;
+	}
+
+	/**
+	 * Sets the key
+	 * @param string $key the key for the cryption
+	 */
+	public function setKey($key){
+		$this->key=$key;
+	}
+
+	/**
+	 * escapes all used variables to opposite an sql injection
+	 * @param        $link    		 the mysqli database link
+	 * @param array  $crypted_column a list of crypted columns used in a query 
+	 */
+	public function save($link,$crypted_column){
+		$this->crypted_column=$crypted_column;
+		foreach ($this->actions as $key => $action) {
+			$this->actions[$key]=mysqli_real_escape_string($link,$action);
+		}
+	}
+
+	/**
+	 * creates the where-SQL-string for the complete SQL-query 
+	 * @return string 
+	 */
+	public function build(){
+		$query="ON DUPLICATE KEY UPDATE ";
+		foreach ($this->actions as $column => $action) {
+			if($action instanceof dbNot)
+				$query .= "`{$column}` = !".$column.", ";
+			else if($action instanceof dbInc)
+				$query .= "`{$column}` = `{$column}` + '{$action->num}', ";
+			else if($action instanceof dbFunc)
+				$query .= "`{$column}` = '{$action->build()}', ";
+			else if(in_array($column,$cryptedColumn))
+				$query .= "`{$column}` = AES_ENCRYPT('{$action}','".$this->key."'), ";
+			else
+				$query .= "`{$column}` = '{$action}', ";
+		}
+		return substr($query, 0, -2)." ";
+	}
 }
 
 /**
