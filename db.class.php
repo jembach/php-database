@@ -396,10 +396,10 @@ class db {
 			foreach ($var as $value) {
 				if($value instanceof dbFunc)
 					$query .= "{$value->build()}, ";
+				else if($value==NULL || $value==Null || $value==null)
+					$query .= "NULL, ";
 				else if(in_array($set[$count],$cryptedColumn))
 					$query .= "AES_ENCRYPT('{$value}','".$this->key."'), ";
-				else if($value===NULL || $value===null || $value===Null)
-					$query .= "NULL, ";
 				else
 					$query .= "'{$value}', ";
 				$count++;
@@ -408,13 +408,70 @@ class db {
 			unset($vars[$key]);
 		}
 		$query=substr($query, 0, -1)." ";
-		$onDuplicateKeyUpdate=$this->getdbOnDuplicateKeyUpdateObject(... $objects);
+		$onDuplicateKeyUpdate=$this->getdbOnDuplicateKeyUpdateObject($objects);
 		if($onDuplicateKeyUpdate!=null){
 			$onDuplicateKeyUpdate->setKey($this->key);
 			$onDuplicateKeyUpdate->save($this->databaseLink,$cryptedColumn);
 			$query.=$onDuplicateKeyUpdate->build();
 		}
 		$query.=";";
+		return $this->ExecuteSQL($query);
+	}
+
+
+	/**
+	 * runs a replace query
+	 * @param string $table   the table name
+	 * @param array  $vars    a list of data which should be replaced in a table; 
+	 *                        organized by column=>value
+	 * @param object $objects a list of db objects which are used as record objects
+	 */
+	public function Replace($table,$vars,... $objects){
+		if(count($vars)==0)
+			return true;
+		$multiDimensional=count($vars) != count($vars, 1);
+		if($multiDimensional && $this->getColumnsOrder($objects)==null){
+			foreach ($vars as $value) {
+				$this->Replace($table,$value,... $objects);
+			}
+			return true;
+		}
+		$cryptedColumn=self::getCryptedFields($objects);
+		if(count($cryptedColumn)>0 && $this->key==null)
+			self::error('Operation Failed: Could not Insert Data without a crypted key!');
+		$vars = $this->SecureData($vars);
+		$query = "REPLACE INTO `{$table}` ";
+		$set=array();
+		if($multiDimensional) {
+			$set=$this->getColumnsOrder($objects);
+		} else {
+			$set=array_keys($vars);
+			$vars=array($vars);
+		}
+		$query.="(";
+		foreach ($set as $key => $value) {
+			$query.="`{$value}`, ";
+		}
+		$query = substr($query, 0, -2).") VALUES ";
+		$count=0;
+		foreach($vars as $key => $var){
+			$query.="(";
+			$count=0;
+			foreach ($var as $value) {
+				if($value instanceof dbFunc)
+					$query .= "{$value->build()}, ";
+				else if($value==NULL || $value==Null || $value==null)
+					$query .= "NULL, ";
+				else if(in_array($set[$count],$cryptedColumn))
+					$query .= "AES_ENCRYPT('{$value}','".$this->key."'), ";
+				else
+					$query .= "'{$value}', ";
+				$count++;
+			}
+			$query=substr($query, 0, -2)."),";
+			unset($vars[$key]);
+		}
+		$query=substr($query, 0, -1).";";
 		return $this->ExecuteSQL($query);
 	}
 
@@ -453,6 +510,8 @@ class db {
 				$query .= "`{$key}` = `{$key}` + '{$value->num}', ";
 			else if($value instanceof dbFunc)
 				$query .= "`{$key}` = '{$value->build()}', ";
+			else if($value==NULL || $value==Null || $value==null)
+				$query .= "NULL, ";
 			else if(in_array($key,$cryptedColumn))
 				$query .= "`{$key}` = AES_ENCRYPT('{$value}','".$this->key."'), ";
 			else
@@ -777,6 +836,8 @@ class dbCond extends dbMain{
 			$query.=$this->column."= !".$this->$column;
 		else if($this->cond instanceof dbFunc) 
 			$query.="`".$this->column."` ".$this->operator." ".$this->cond->build();
+		else if($this->cond==NULL || $this->cond==Null || $this->cond==null)
+			$query.="`".$this->column."` IS NULL";
 		else if($this->operator=="LIKE" && !in_array($this->column, $this->crypted_column)) //LIKE and not crypted
 			$query.="`".$this->column."` ".$this->operator." '%".$this->cond."%'";
 		else if($this->operator=="LIKE" && in_array($this->column, $this->crypted_column))  //LIKE and crypted
