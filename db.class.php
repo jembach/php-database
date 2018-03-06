@@ -511,7 +511,7 @@ class db {
 			else if($value instanceof dbFunc)
 				$query .= "`{$key}` = '{$value->build()}', ";
 			else if($value==NULL || $value==Null || $value==null)
-				$query .= "NULL, ";
+				$query .= "`{$key}` = NULL, ";
 			else if(in_array($key,$cryptedColumn))
 				$query .= "`{$key}` = AES_ENCRYPT('{$value}','".$this->key."'), ";
 			else
