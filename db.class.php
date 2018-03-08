@@ -299,7 +299,7 @@ class db {
 		$cryptedColumn=array();
 		foreach ($objects as $object) {
 			if($object instanceof dbOnDuplicateKeyUpdate)
-				return $object->columns;
+				return $object;
 		}
 		return null;
 	}
@@ -509,7 +509,7 @@ class db {
 			else if($value instanceof dbInc)
 				$query .= "`{$key}` = `{$key}` + '{$value->num}', ";
 			else if($value instanceof dbFunc)
-				$query .= "`{$key}` = '{$value->build()}', ";
+				$query .= "`{$key}` = {$value->build()}, ";
 			else if($value==NULL || $value==Null || $value==null)
 				$query .= "`{$key}` = NULL, ";
 			else if(in_array($key,$cryptedColumn))
@@ -811,7 +811,8 @@ class dbCond extends dbMain{
 	public function save($link,$crypted_column){
 		$this->crypted_column=$crypted_column;
 		$this->column=mysqli_real_escape_string($link,$this->column);
-		$this->cond=mysqli_real_escape_string($link,$this->cond);
+		if(!is_object($this->cond))
+			$this->cond=mysqli_real_escape_string($link,$this->cond);
 		$this->operator=mysqli_real_escape_string($link,$this->operator);
 		$this->connect=mysqli_real_escape_string($link,$this->connect);
 	}
@@ -970,9 +971,11 @@ class dbFunc{
 		if(strpos($this->func,"?")===false) {
 			return $this->func;
 		} else {
-			$query="";
-			foreach (explode($this->params,"?") as $key => $value) {
-				$query.=$value."'".$this->params[$key]."'";
+			foreach (explode("?",$this->func) as $key => $value) {
+				if(isset($this->params[$key]))
+					$query.=$value.$this->params[$key];
+				else
+					$query.=$value;
 			}
 			return $query;
 		}
@@ -1160,7 +1163,8 @@ class dbOnDuplicateKeyUpdate {
 	public function save($link,$crypted_column){
 		$this->crypted_column=$crypted_column;
 		foreach ($this->actions as $key => $action) {
-			$this->actions[$key]=mysqli_real_escape_string($link,$action);
+			if(!is_object($action))
+				$this->actions[$key]=mysqli_real_escape_string($link,$action);
 		}
 	}
 
@@ -1176,7 +1180,7 @@ class dbOnDuplicateKeyUpdate {
 			else if($action instanceof dbInc)
 				$query .= "`{$column}` = `{$column}` + '{$action->num}', ";
 			else if($action instanceof dbFunc)
-				$query .= "`{$column}` = '{$action->build()}', ";
+				$query .= "`{$column}` = {$action->build()}, ";
 			else if(in_array($column,$cryptedColumn))
 				$query .= "`{$column}` = AES_ENCRYPT('{$action}','".$this->key."'), ";
 			else
