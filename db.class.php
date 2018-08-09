@@ -705,7 +705,7 @@ class db
         }
         //sql string zusammensetzen
         $return = "";
-        foreach (array("dbJoin", "dbCondBlock", "dbCond", "dbIn", "dbOrder", "dbLimit", "dbGroup") as $classes) {
+        foreach (array("dbJoin", "dbCondBlock", "dbCond", "dbIn", "dbGroup", "dbOrder", "dbLimit") as $classes) {
             if (isset($clauses[$classes])) {
                 foreach ($clauses[$classes] as $subclauses) {
                     $return .= $subclauses . " ";
@@ -941,6 +941,7 @@ class dbCond extends dbMain
         if (!is_object($this->cond)) {
             $this->cond = mysqli_real_escape_string($link, $this->cond);
         }
+
         $this->operator = mysqli_real_escape_string($link, $this->operator);
         $this->connect = mysqli_real_escape_string($link, $this->connect);
     }
@@ -1004,7 +1005,7 @@ class dbCondBlock extends dbMain
     public function __construct(...$conditions)
     {
         foreach ($conditions as $cond) {
-            if ($cond instanceof dbCond) {
+            if ($cond instanceof dbCond || $cond instanceof dbIn) {
                 $this->cond[] = $cond;
             }
 
@@ -1099,7 +1100,7 @@ class dbFunc
     {
         $this->func = $func;
         $this->params = $params;
-        if (substr_count($this->func) != count($this->params)) {
+        if (substr_count($this->func, "?") != count($this->params)) {
             db::error("dbFunc: You haven't set enough parameters.");
         }
 
