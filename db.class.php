@@ -24,6 +24,7 @@ class db
     public $key = null; // Holds the crypt key
     public $database = null; // Holds the selected database
     public $databaseLink; // Database Connection Link
+    public $connectionTime;
     static $errorReporting; // defines the how to display errors
     static $failedConnection = 0; // Holds the total number of failed connections
     const ERROR_EXCEPTION = 1; // constant to define the errorReporting with ecxeptions
@@ -41,6 +42,7 @@ class db
      */
     public function __construct($host, $username, $password, $db = null, $key = null, $errorReporting = self::ERROR_EXCEPTION)
     {
+        $this->connectionTime = microtime(true);
         $this->connect($host, $username, $password, $db);
         $this->$errorReporting = $errorReporting;
         if ($key != null && is_string($key)) {
@@ -401,9 +403,7 @@ class db
         $query = substr($query, 0, -2);
         $query .= " FROM `" . self::SecureData($table) . "` ";
         $query .= self::buildClauses(...$objects) . ";";
-        $data = $this->ExecuteSQL($query);
-
-        return $data;
+        return $this->ExecuteSQL($query);
     }
 
     /**
